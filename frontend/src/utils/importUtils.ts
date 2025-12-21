@@ -1,5 +1,5 @@
 import { exportToSvg } from "@excalidraw/excalidraw";
-import { API_URL } from "../api";
+import { api } from "../api";
 
 export const importDrawings = async (
   files: File[],
@@ -50,21 +50,22 @@ export const importDrawings = async (
           preview: svg.outerHTML,
         };
 
-        const res = await fetch(`${API_URL}/drawings`, {
-          method: "POST",
+        await api.post("/drawings", payload, {
           headers: {
-            "Content-Type": "application/json",
+            // Backend uses this header to apply stricter validation for imported files.
             "X-Imported-File": "true",
           },
-          body: JSON.stringify(payload),
         });
-
-        if (!res.ok) throw new Error("API Error");
         successCount++;
       } catch (err: any) {
         console.error(`Failed to import ${file.name}:`, err);
         failCount++;
-        errors.push(`${file.name}: ${err.message}`);
+        const apiMessage =
+          err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          err?.message ||
+          "API Error";
+        errors.push(`${file.name}: ${apiMessage}`);
       }
     })
   );
