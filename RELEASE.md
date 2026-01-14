@@ -1,30 +1,29 @@
-# ExcaliDash v0.1.5
+CSRF Protection (8a78b2b)
 
-Date: 2025-11-23
+  - Implemented comprehensive CSRF (Cross-Site Request Forgery) protection for enhanced security
+  - Added new backend/src/security.ts module for security utilities
+  - Frontend API layer now handles CSRF tokens automatically
+  - Added integration tests for CSRF validation
 
-Compatibility: v0.1.x (Backward Compatible)
+  Upload Progress Indicator (8f9b9b4)
 
-# Security
+  - Added a visual upload progress bar when users upload files
+  - New UploadContext for managing upload state across components
+  - New UploadStatus component displaying real-time upload progress
+  - Save status indicator when navigating back from the editor
+  - Improved error handling and recovery for failed uploads
 
-- RCE: implemented strict Zod schema validation and input sanitization on file uploads; added path traversal guards to file handling logic
+  Bug Fixes
 
-- XSS: used DOMPurify for HTML sanitization; blocked execution-capable SVG attributes and enforces CSP headers.
+  - Fixed broken e2e tests (cae8f3c)
+  - Replaced deprecated substr() with substring()
+  - Fixed stale state issues in error handling
+  - Fixed missing useEffect dependencies
+  - Fixed CSS class conflicts in progress bar styling
+  - Added error recovery for save state in Editor
 
-- DoS: moved CPU-intensive operations to worker threads to prevent event loop blocking; request rate limiting (1,000 req/15 min per IP) and streaming for large files
+  Infrastructure
 
-# Infras & Deployment
-
-- non-root execution (uid 1001) in containers
-- migrated to multi-stage Docker builds
-
-# Database
-
-- migrated to better-sqlite3, converted all DB interactions to non-blocking async operations and offloaded integrity checks to worker threads.
-
-- implemented SQLite magic header validation; added automatic backup triggers preceding data import
-
-- input validation logic
-
-# Frontend
-
-- updated Settings UI to show version
+  - Updated docker-compose configurations with new environment variables
+  - E2E test suite improvements and reliability fixes
+  - Added Kubernetes deployment note in README
