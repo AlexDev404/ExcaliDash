@@ -9,7 +9,7 @@ import type { DrawingSummary, Collection } from '../types';
 import { useDebounce } from '../hooks/useDebounce';
 import clsx from 'clsx';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { importDrawings } from '../utils/importUtils';
+import { useUpload } from '../context/UploadContext';
 
 type Point = { x: number; y: number };
 
@@ -78,7 +78,6 @@ export const Dashboard: React.FC = () => {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const [showImportError, setShowImportError] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
-  const [showImportSuccess, setShowImportSuccess] = useState(false);
 
   const [isDragSelecting, setIsDragSelecting] = useState(false);
   const [dragStart, setDragStart] = useState<Point | null>(null);
@@ -98,6 +97,8 @@ export const Dashboard: React.FC = () => {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+
+  const { uploadFiles } = useUpload();
 
   const refreshData = useCallback(async () => {
     setIsLoading(true);
@@ -303,17 +304,12 @@ export const Dashboard: React.FC = () => {
 
     const fileArray = Array.from(files);
     const targetCollectionId = selectedCollectionId === undefined ? null : selectedCollectionId;
-
-    const result = await importDrawings(fileArray, targetCollectionId, refreshData);
-
-    if (result.failed > 0) {
-      setShowImportError({
-        isOpen: true,
-        message: `Import complete with errors.\nSuccess: ${result.success}\nFailed: ${result.failed}\nErrors:\n${result.errors.join('\n')}`
-      });
-    } else {
-      setShowImportSuccess(true);
-    }
+    
+    // Use the global upload context
+    uploadFiles(fileArray, targetCollectionId).finally(() => {
+      // Refresh after all uploads complete (success or failure)
+      refreshData();
+    });
   };
 
   const handleRenameDrawing = async (id: string, name: string) => {
@@ -525,8 +521,7 @@ export const Dashboard: React.FC = () => {
     // Handle Files
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
-      setIsLoading(true);
-
+      
       const libFiles = files.filter(f => f.name.endsWith('.excalidrawlib'));
       if (libFiles.length > 0) {
         setShowImportError({
@@ -537,13 +532,11 @@ export const Dashboard: React.FC = () => {
 
       const drawingFiles = files.filter(f => !f.name.endsWith('.excalidrawlib'));
       if (drawingFiles.length > 0) {
-        const result = await importDrawings(drawingFiles, targetCollectionId, refreshData);
-        if (result.failed > 0) {
-          alert(`Import complete with errors.\nSuccess: ${result.success}\nFailed: ${result.failed}\nErrors:\n${result.errors.join('\n')}`);
-        }
+        uploadFiles(drawingFiles, targetCollectionId).finally(() => {
+          refreshData();
+        });
       }
 
-      setIsLoading(false);
       return;
     }
 
@@ -938,17 +931,6 @@ export const Dashboard: React.FC = () => {
         onCancel={() => setShowImportError({ isOpen: false, message: '' })}
       />
 
-      <ConfirmModal
-        isOpen={showImportSuccess}
-        title="Import Successful"
-        message="Drawings imported successfully."
-        confirmText="OK"
-        showCancel={false}
-        isDangerous={false}
-        variant="success"
-        onConfirm={() => setShowImportSuccess(false)}
-        onCancel={() => setShowImportSuccess(false)}
-      />
     </Layout>
   );
 };

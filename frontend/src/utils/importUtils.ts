@@ -1,10 +1,17 @@
 import { exportToSvg } from "@excalidraw/excalidraw";
 import { api } from "../api";
+import { type UploadStatus } from "../context/UploadContext";
 
 export const importDrawings = async (
   files: File[],
   targetCollectionId: string | null,
-  onSuccess?: () => void | Promise<void>
+  onSuccess?: () => void | Promise<void>,
+  onProgress?: (
+    fileName: string,
+    status: UploadStatus,
+    progress: number,
+    error?: string
+  ) => void
 ) => {
   const drawingFiles = files.filter(
     (f) => f.name.endsWith(".json") || f.name.endsWith(".excalidraw")
@@ -18,9 +25,13 @@ export const importDrawings = async (
   let failCount = 0;
   const errors: string[] = [];
 
+  // We process files in parallel (Promise.all) but we could limit concurrency if needed.
+  // For now, full parallel is fine as browser limits connection count anyway.
   await Promise.all(
     drawingFiles.map(async (file) => {
       try {
+        if (onProgress) onProgress(file.name, 'processing', 0); // Parsing phase
+
         const text = await file.text();
         const data = JSON.parse(text);
 
@@ -50,22 +61,36 @@ export const importDrawings = async (
           preview: svg.outerHTML,
         };
 
+        if (onProgress) onProgress(file.name, 'uploading', 0);
+
         await api.post("/drawings", payload, {
           headers: {
             // Backend uses this header to apply stricter validation for imported files.
             "X-Imported-File": "true",
           },
+          onUploadProgress: (progressEvent) => {
+            if (onProgress && progressEvent.total) {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              onProgress(file.name, 'uploading', percentCompleted);
+            }
+          },
         });
+
+        if (onProgress) onProgress(file.name, 'success', 100);
         successCount++;
+
       } catch (err: any) {
         console.error(`Failed to import ${file.name}:`, err);
         failCount++;
-        const apiMessage =
+        const errorMessage =
           err?.response?.data?.message ||
           err?.response?.data?.error ||
           err?.message ||
-          "API Error";
-        errors.push(`${file.name}: ${apiMessage}`);
+          "Upload failed";
+        errors.push(`${file.name}: ${errorMessage}`);
+        if (onProgress) onProgress(file.name, 'error', 0, errorMessage);
       }
     })
   );

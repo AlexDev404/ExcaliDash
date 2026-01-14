@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { Excalidraw, exportToSvg } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import debounce from 'lodash/debounce';
@@ -56,6 +56,7 @@ export const Editor: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [initialData, setInitialData] = useState<any>(null);
   const [isSceneLoading, setIsSceneLoading] = useState(true);
+  const [isSavingOnLeave, setIsSavingOnLeave] = useState(false);
 
   useEffect(() => {
     document.title = `${drawingName} - ExcaliDash`;
@@ -591,23 +592,29 @@ export const Editor: React.FC = () => {
   // Disable native Excalidraw save dialogs
 
   const handleBackClick = async () => {
+    if (isSavingOnLeave) return; // Prevent double clicks
+
+    setIsSavingOnLeave(true);
+
     // Save drawing and generate preview before navigating
-    if (excalidrawAPI.current && saveDataRef.current && savePreviewRef.current) {
-      const elements = excalidrawAPI.current.getSceneElementsIncludingDeleted();
-      const appState = excalidrawAPI.current.getAppState();
-      const files = excalidrawAPI.current.getFiles() || {};
-      latestElementsRef.current = elements;
-      latestFilesRef.current = files;
-      
-      try {
+    try {
+      if (excalidrawAPI.current && saveDataRef.current && savePreviewRef.current) {
+        const elements = excalidrawAPI.current.getSceneElementsIncludingDeleted();
+        const appState = excalidrawAPI.current.getAppState();
+        const files = excalidrawAPI.current.getFiles() || {};
+        latestElementsRef.current = elements;
+        latestFilesRef.current = files;
+
         await Promise.all([
           saveDataRef.current(elements, appState),
           savePreviewRef.current(elements, appState, files)
         ]);
         console.log("[Editor] Saved on back navigation", { drawingId: id });
-      } catch (err) {
-        console.error('Failed to save on back navigation', err);
       }
+    } catch (err) {
+      console.error('Failed to save on back navigation', err);
+    } finally {
+      setIsSavingOnLeave(false);
     }
     navigate('/');
   };
@@ -616,8 +623,19 @@ export const Editor: React.FC = () => {
     <div className="h-screen flex flex-col bg-white dark:bg-neutral-950 overflow-hidden">
       <header className="h-14 bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 flex items-center px-4 justify-between z-10">
         <div className="flex items-center gap-4">
-          <button onClick={handleBackClick} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-full text-gray-600 dark:text-gray-300">
-            <ArrowLeft size={20} />
+          <button 
+            onClick={handleBackClick} 
+            disabled={isSavingOnLeave}
+            className={`flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-full text-gray-600 dark:text-gray-300 disabled:opacity-50 disabled:cursor-wait transition-all duration-200 ${isSavingOnLeave ? 'pr-4' : ''}`}
+          >
+            {isSavingOnLeave ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                <span className="text-sm font-medium">Saving changes...</span>
+              </>
+            ) : (
+              <ArrowLeft size={20} />
+            )}
           </button>
 
           {isRenaming ? (
