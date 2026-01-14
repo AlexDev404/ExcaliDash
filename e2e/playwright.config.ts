@@ -83,7 +83,7 @@ export default defineConfig({
   ],
 
   // Run local dev servers before tests (skip if NO_SERVER or CI)
-  webServer: (process.env.CI || process.env.NO_SERVER) ? undefined : [
+  webServer: (process.env.CI || process.env.NO_SERVER === "true") ? undefined : [
     {
       command: "cd ../backend && npm run dev",
       url: `${BACKEND_URL}/health`,
