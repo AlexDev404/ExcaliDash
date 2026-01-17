@@ -141,8 +141,7 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawing.id, drawing.preview, onPreviewGenerated]); // ensureFullData has stable identity via refs
+  }, [drawing.id, drawing.preview, onPreviewGenerated, ensureFullData]);
 
   const handleExport = useCallback(async () => {
     try {
