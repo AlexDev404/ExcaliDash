@@ -5,7 +5,20 @@ export const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 export const api = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
 });
+
+export type AuthStatus = {
+  enabled: boolean;
+  authenticated: boolean;
+  user: { username: string } | null;
+};
+
+let unauthorizedHandler: (() => void) | null = null;
+
+export const setUnauthorizedHandler = (handler: (() => void) | null) => {
+  unauthorizedHandler = handler;
+};
 
 // CSRF Token Management
 let csrfToken: string | null = null;
@@ -18,7 +31,8 @@ let csrfTokenPromise: Promise<void> | null = null;
 export const fetchCsrfToken = async (): Promise<void> => {
   try {
     const response = await axios.get<{ token: string; header: string }>(
-      `${API_URL}/csrf-token`
+      `${API_URL}/csrf-token`,
+      { withCredentials: true }
     );
     csrfToken = response.data.token;
     csrfHeaderName = response.data.header || "x-csrf-token";
@@ -50,6 +64,11 @@ export const clearCsrfToken = (): void => {
   csrfToken = null;
 };
 
+export const getCsrfHeaders = async (): Promise<Record<string, string>> => {
+  await ensureCsrfToken();
+  return csrfToken ? { [csrfHeaderName]: csrfToken } : {};
+};
+
 // Add request interceptor to include CSRF token
 api.interceptors.request.use(
   async (config) => {
@@ -70,6 +89,10 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    if (error.response?.status === 401) {
+      unauthorizedHandler?.();
+    }
+
     // If we get a 403 with CSRF error, clear token and retry once
     if (
       error.response?.status === 403 &&
@@ -91,6 +114,24 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export const getAuthStatus = async (): Promise<AuthStatus> => {
+  const response = await api.get<AuthStatus>("/auth/status");
+  return response.data;
+};
+
+export const login = async (username: string, password: string) => {
+  const response = await api.post<{ authenticated: boolean }>("/auth/login", {
+    username,
+    password,
+  });
+  return response.data;
+};
+
+export const logout = async () => {
+  const response = await api.post<{ authenticated: boolean }>("/auth/logout");
+  return response.data;
+};
 
 const coerceTimestamp = (value: string | number | Date): number => {
   if (typeof value === "number") return value;

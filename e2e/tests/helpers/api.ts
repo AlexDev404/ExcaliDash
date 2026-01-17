@@ -5,6 +5,58 @@ const DEFAULT_BACKEND_PORT = 8000;
 
 export const API_URL = process.env.API_URL || `http://localhost:${DEFAULT_BACKEND_PORT}`;
 
+const AUTH_USERNAME = process.env.AUTH_USERNAME || "admin";
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD || "admin";
+
+// Track authenticated API contexts
+const authenticatedContexts = new WeakSet<APIRequestContext>();
+
+/**
+ * Ensure the API request context is authenticated
+ */
+export async function ensureAuthenticated(request: APIRequestContext): Promise<void> {
+  if (authenticatedContexts.has(request)) return;
+
+  // Check current auth status
+  const statusResp = await request.get(`${API_URL}/auth/status`);
+  if (!statusResp.ok()) {
+    throw new Error(`Failed to check auth status: ${statusResp.status()}`);
+  }
+
+  const status = (await statusResp.json()) as { enabled: boolean; authenticated: boolean };
+  
+  if (!status.enabled) {
+    // Auth is disabled, mark as "authenticated"
+    authenticatedContexts.add(request);
+    return;
+  }
+
+  if (status.authenticated) {
+    authenticatedContexts.add(request);
+    return;
+  }
+
+  // Need to login
+  const csrfHeaders = await getCsrfHeaders(request);
+  const loginResp = await request.post(`${API_URL}/auth/login`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...csrfHeaders,
+    },
+    data: {
+      username: AUTH_USERNAME,
+      password: AUTH_PASSWORD,
+    },
+  });
+
+  if (!loginResp.ok()) {
+    const text = await loginResp.text();
+    throw new Error(`API authentication failed: ${loginResp.status()} ${text}`);
+  }
+
+  authenticatedContexts.add(request);
+}
+
 type CsrfTokenResponse = {
   token: string;
   header?: string;
@@ -137,6 +189,8 @@ export async function createDrawing(
   request: APIRequestContext,
   overrides: CreateDrawingOptions = {}
 ): Promise<DrawingRecord> {
+  await ensureAuthenticated(request);
+  
   const payload = { ...defaultDrawingPayload(), ...overrides };
   const headers = await withCsrfHeaders(request, { "Content-Type": "application/json" });
 
@@ -169,6 +223,7 @@ export async function getDrawing(
   request: APIRequestContext,
   id: string
 ): Promise<DrawingRecord> {
+  await ensureAuthenticated(request);
   const response = await request.get(`${API_URL}/drawings/${id}`);
   expect(response.ok()).toBe(true);
   return (await response.json()) as DrawingRecord;
@@ -178,6 +233,7 @@ export async function deleteDrawing(
   request: APIRequestContext,
   id: string
 ): Promise<void> {
+  await ensureAuthenticated(request);
   const headers = await withCsrfHeaders(request);
   let response = await request.delete(`${API_URL}/drawings/${id}`, { headers });
 
@@ -202,6 +258,7 @@ export async function listDrawings(
   request: APIRequestContext,
   options: ListDrawingsOptions = {}
 ): Promise<DrawingRecord[]> {
+  await ensureAuthenticated(request);
   const params = new URLSearchParams();
   if (options.search) params.set("search", options.search);
   if (options.collectionId !== undefined) {
@@ -224,6 +281,7 @@ export async function createCollection(
   request: APIRequestContext,
   name: string
 ): Promise<CollectionRecord> {
+  await ensureAuthenticated(request);
   const headers = await withCsrfHeaders(request, { "Content-Type": "application/json" });
 
   let response = await request.post(`${API_URL}/collections`, {
@@ -249,6 +307,7 @@ export async function createCollection(
 export async function listCollections(
   request: APIRequestContext
 ): Promise<CollectionRecord[]> {
+  await ensureAuthenticated(request);
   const response = await request.get(`${API_URL}/collections`);
   expect(response.ok()).toBe(true);
   return (await response.json()) as CollectionRecord[];
@@ -258,6 +317,7 @@ export async function deleteCollection(
   request: APIRequestContext,
   id: string
 ): Promise<void> {
+  await ensureAuthenticated(request);
   const headers = await withCsrfHeaders(request);
   let response = await request.delete(`${API_URL}/collections/${id}`, { headers });
 

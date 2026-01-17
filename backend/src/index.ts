@@ -23,6 +23,13 @@ import {
   getCsrfTokenHeader,
   getOriginFromReferer,
 } from "./security";
+import {
+  buildAuthConfig,
+  buildAuthCookieOptions,
+  createAuthSessionToken,
+  getAuthSessionFromCookie,
+  verifyCredentials,
+} from "./auth";
 
 dotenv.config();
 
@@ -95,6 +102,13 @@ const normalizeOrigins = (rawOrigins?: string | null): string[] => {
 
 const allowedOrigins = normalizeOrigins(process.env.FRONTEND_URL);
 console.log("Allowed origins:", allowedOrigins);
+
+const authConfig = buildAuthConfig();
+if (authConfig.enabled) {
+  console.log(`[auth] Enabled for user "${authConfig.username}".`);
+} else {
+  console.log("[auth] Disabled (AUTH_USERNAME/AUTH_PASSWORD not set).");
+}
 
 const uploadDir = path.resolve(__dirname, "../uploads");
 
@@ -374,6 +388,52 @@ app.get("/csrf-token", (req, res) => {
   });
 });
 
+const isRequestSecure = (req: express.Request): boolean => {
+  if (req.secure) return true;
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  if (Array.isArray(forwardedProto)) {
+    return forwardedProto[0] === "https";
+  }
+  return forwardedProto === "https";
+};
+
+const authExemptPaths = new Set([
+  "/csrf-token",
+  "/health",
+  "/auth/status",
+  "/auth/login",
+  "/auth/logout",
+]);
+
+const authMiddleware = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) => {
+  if (!authConfig.enabled) {
+    return next();
+  }
+
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+
+  if (authExemptPaths.has(req.path)) {
+    return next();
+  }
+
+  const session = getAuthSessionFromCookie(req.headers.cookie, authConfig);
+  if (!session) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Authentication required",
+    });
+  }
+
+  res.locals.authUser = session.username;
+  next();
+};
+
 // CSRF validation middleware for state-changing requests
 const csrfProtectionMiddleware = (
   req: express.Request,
@@ -438,8 +498,74 @@ const csrfProtectionMiddleware = (
   next();
 };
 
-// Apply CSRF protection to all routes
+// Apply authentication and CSRF protection to all routes
+app.use(authMiddleware);
 app.use(csrfProtectionMiddleware);
+
+const authLoginSchema = z.object({
+  username: z.string().trim().min(1).max(200),
+  password: z.string().min(1).max(512),
+});
+
+app.get("/auth/status", (req, res) => {
+  const session = getAuthSessionFromCookie(req.headers.cookie, authConfig);
+  res.setHeader("Cache-Control", "no-store");
+  res.json({
+    enabled: authConfig.enabled,
+    authenticated: Boolean(session),
+    user: session ? { username: session.username } : null,
+  });
+});
+
+app.post("/auth/login", (req, res) => {
+  if (!authConfig.enabled) {
+    return res.status(404).json({
+      error: "Authentication disabled",
+      message: "Authentication is not enabled on this server.",
+    });
+  }
+
+  const parsed = authLoginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Invalid payload",
+      message: "Username and password are required.",
+    });
+  }
+
+  const { username, password } = parsed.data;
+  if (!verifyCredentials(authConfig, username, password)) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Invalid username or password.",
+    });
+  }
+
+  const token = createAuthSessionToken(authConfig, authConfig.username);
+  res.cookie(
+    authConfig.cookieName,
+    token,
+    buildAuthCookieOptions(
+      isRequestSecure(req),
+      authConfig.cookieSameSite,
+      authConfig.sessionTtlMs
+    )
+  );
+  res.setHeader("Cache-Control", "no-store");
+  return res.json({
+    authenticated: true,
+    user: { username: authConfig.username },
+  });
+});
+
+app.post("/auth/logout", (req, res) => {
+  res.clearCookie(
+    authConfig.cookieName,
+    buildAuthCookieOptions(isRequestSecure(req), authConfig.cookieSameSite)
+  );
+  res.setHeader("Cache-Control", "no-store");
+  return res.json({ authenticated: false });
+});
 
 const filesFieldSchema = z
   .union([z.record(z.string(), z.any()), z.null()])
@@ -629,6 +755,20 @@ interface User {
 }
 
 const roomUsers = new Map<string, User[]>();
+
+if (authConfig.enabled) {
+  io.use((socket, next) => {
+    const session = getAuthSessionFromCookie(
+      socket.request.headers.cookie,
+      authConfig
+    );
+    if (!session) {
+      return next(new Error("Unauthorized"));
+    }
+    (socket as { authUser?: string }).authUser = session.username;
+    return next();
+  });
+}
 
 io.on("connection", (socket) => {
   socket.on(

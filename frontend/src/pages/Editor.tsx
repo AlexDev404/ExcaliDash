@@ -114,6 +114,7 @@ export const Editor: React.FC = () => {
     const socket = io(socketUrl, {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
+      withCredentials: true,
     });
     socketRef.current = socket;
 

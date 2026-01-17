@@ -4,20 +4,26 @@ import { Editor } from './pages/Editor';
 import { Settings } from './pages/Settings';
 import { ThemeProvider } from './context/ThemeContext';
 import { UploadProvider } from './context/UploadContext';
+import { AuthProvider } from './context/AuthContext';
+import { AuthGate } from './components/AuthGate';
 
 function App() {
   return (
     <ThemeProvider>
-      <UploadProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/collections" element={<Dashboard />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/editor/:id" element={<Editor />} />
-          </Routes>
-        </Router>
-      </UploadProvider>
+      <AuthProvider>
+        <UploadProvider>
+          <Router>
+            <AuthGate>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/collections" element={<Dashboard />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/editor/:id" element={<Editor />} />
+              </Routes>
+            </AuthGate>
+          </Router>
+        </UploadProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

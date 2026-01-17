@@ -3,15 +3,17 @@ import { Layout } from '../components/Layout';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../api';
 import type { Collection } from '../types';
-import { Database, FileJson, Upload, Moon, Sun, Info, HardDrive } from 'lucide-react';
+import { Database, FileJson, Upload, Moon, Sun, Info, HardDrive, LogOut } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { importDrawings } from '../utils/importUtils';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 export const Settings: React.FC = () => {
     const [collections, setCollections] = useState<Collection[]>([]);
     const navigate = useNavigate();
     const { theme, toggleTheme } = useTheme();
+    const { state: authState, logout, refreshStatus } = useAuth();
 
     const [importConfirmation, setImportConfirmation] = useState<{ isOpen: boolean; file: File | null }>({ isOpen: false, file: null });
     const [importError, setImportError] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
@@ -91,6 +93,31 @@ export const Settings: React.FC = () => {
                     </div>
                 </button>
 
+                {authState.enabled && authState.authenticated && (
+                    <button
+                        onClick={async () => {
+                            try {
+                                await logout();
+                            } catch (err) {
+                                console.error('Failed to log out:', err);
+                            }
+                        }}
+                        className="flex flex-col items-center justify-center gap-4 p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group"
+                    >
+                        <div className="w-16 h-16 bg-rose-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-rose-100 dark:border-neutral-700 group-hover:border-rose-200 dark:group-hover:border-neutral-600 transition-colors">
+                            <LogOut size={32} className="text-rose-600 dark:text-rose-400" />
+                        </div>
+                        <div className="text-center">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
+                                Log out
+                            </h3>
+                            <p className="text-sm text-slate-500 dark:text-neutral-400 font-medium">
+                                End your current session
+                            </p>
+                        </div>
+                    </button>
+                )}
+
                 <button
                     onClick={() => window.location.href = `${api.API_URL}/export`}
                     className="flex flex-col items-center justify-center gap-4 p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group"
@@ -154,10 +181,18 @@ export const Settings: React.FC = () => {
                                 formData.append('db', databaseFile);
 
                                 try {
+                                    const csrfHeaders = await api.getCsrfHeaders();
                                     const res = await fetch(`${api.API_URL}/import/sqlite/verify`, {
                                         method: 'POST',
                                         body: formData,
+                                        credentials: 'include',
+                                        headers: csrfHeaders,
                                     });
+
+                                    if (res.status === 401) {
+                                        await refreshStatus();
+                                        return;
+                                    }
 
                                     if (!res.ok) {
                                         const errorData = await res.json();
@@ -244,10 +279,18 @@ export const Settings: React.FC = () => {
                     formData.append('db', importConfirmation.file);
 
                     try {
+                        const csrfHeaders = await api.getCsrfHeaders();
                         const res = await fetch(`${api.API_URL}/import/sqlite`, {
                             method: 'POST',
                             body: formData,
+                            credentials: 'include',
+                            headers: csrfHeaders,
                         });
+
+                        if (res.status === 401) {
+                            await refreshStatus();
+                            return;
+                        }
 
                         if (!res.ok) {
                             const errorData = await res.json();

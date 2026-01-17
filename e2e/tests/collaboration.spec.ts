@@ -1,4 +1,5 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
+import { ensurePageAuthenticated } from "./helpers/auth";
 import {
   createDrawing,
   deleteDrawing,
@@ -42,6 +43,8 @@ test.describe("Real-time Collaboration", () => {
 
     try {
       // Both users navigate to the same drawing
+      await ensurePageAuthenticated(page1);
+      await ensurePageAuthenticated(page2);
       await page1.goto(`/editor/${drawing.id}`);
       await page2.goto(`/editor/${drawing.id}`);
 
@@ -88,6 +91,8 @@ test.describe("Real-time Collaboration", () => {
 
     try {
       // Both users navigate to the same drawing
+      await ensurePageAuthenticated(page1);
+      await ensurePageAuthenticated(page2);
       await page1.goto(`/editor/${drawing.id}`);
       await page2.goto(`/editor/${drawing.id}`);
 
@@ -190,6 +195,8 @@ test.describe("Real-time Collaboration", () => {
     const page2 = await context2.newPage();
 
     try {
+      await ensurePageAuthenticated(page1);
+      await ensurePageAuthenticated(page2);
       await page1.goto(`/editor/${drawing.id}`);
       await page2.goto(`/editor/${drawing.id}`);
 

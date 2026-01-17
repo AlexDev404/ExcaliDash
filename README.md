@@ -154,6 +154,27 @@ backend:
 
 Without this, each container generates its own ephemeral CSRF secret, causing token validation failures when requests are routed to different replicas. Single-container deployments work without this setting.
 
+### Optional Authentication
+
+ExcaliDash can enforce a single username/password to protect the dashboard and API.
+Set these backend environment variables to enable it:
+
+```bash
+AUTH_USERNAME=admin
+AUTH_PASSWORD=change-me
+# Recommended: keep sessions stable across restarts
+AUTH_SESSION_SECRET=your-random-secret
+# Optional (default: 168 hours)
+AUTH_SESSION_TTL_HOURS=168
+# Optional (default: excalidash_auth)
+AUTH_COOKIE_NAME=excalidash_auth
+# Optional: lax | strict | none (use "none" for cross-site hosting)
+AUTH_COOKIE_SAMESITE=lax
+```
+
+When enabled, the UI prompts for a login before accessing any drawings,
+and all API/WebSocket traffic requires the session cookie.
+
 # Development
 
 ## Clone the Repository

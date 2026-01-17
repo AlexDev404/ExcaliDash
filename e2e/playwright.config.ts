@@ -4,7 +4,14 @@ import { defineConfig, devices } from "@playwright/test";
 const FRONTEND_PORT = 5173;
 const BACKEND_PORT = 8000;
 const FRONTEND_URL = process.env.BASE_URL || `http://localhost:${FRONTEND_PORT}`;
-const BACKEND_URL = process.env.API_URL || `http://localhost:${BACKEND_PORT}`;
+const BACKEND_URL = process.env.API_URL || http://localhost:${BACKEND_PORT}`;
+const AUTH_USERNAME = process.env.AUTH_USERNAME || "admin";
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD || "admin";
+const AUTH_SESSION_SECRET = process.env.AUTH_SESSION_SECRET || "e2e-auth-secret";
+
+process.env.AUTH_USERNAME = AUTH_USERNAME;
+process.env.AUTH_PASSWORD = AUTH_PASSWORD;
+process.env.AUTH_SESSION_SECRET = AUTH_SESSION_SECRET;
 
 /**
  * Playwright configuration for E2E browser testing
@@ -97,6 +104,9 @@ export default defineConfig({
         DATABASE_URL: "file:./dev.db",
         FRONTEND_URL,
         CSRF_MAX_REQUESTS: "1000",
+        AUTH_USERNAME,
+        AUTH_PASSWORD,
+        AUTH_SESSION_SECRET,
       },
     },
     {
