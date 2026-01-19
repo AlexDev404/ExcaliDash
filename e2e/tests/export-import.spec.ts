@@ -1,4 +1,5 @@
 import { test, expect } from "./fixtures";
+import type { Page } from "@playwright/test";
 import {
   API_URL,
   createDrawing,
@@ -19,6 +20,21 @@ import {
  * - Import JSON files
  * - Import database backup
  */
+
+const waitForDrawingImports = async (page: Page, count: number) => {
+  const waiters = Array.from({ length: count }, () =>
+    page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/drawings") &&
+        response.request().method() === "POST"
+    )
+  );
+
+  const responses = await Promise.all(waiters);
+  for (const response of responses) {
+    expect(response.ok()).toBeTruthy();
+  }
+};
 
 test.describe("Export Functionality", () => {
   let createdDrawingIds: string[] = [];
@@ -214,24 +230,18 @@ test.describe.serial("Import Functionality", () => {
     const fileInput = page.locator("#dashboard-import");
 
     // Create a buffer from the fixture content
+    const importResponses = waitForDrawingImports(page, 1);
     await fileInput.setInputFiles({
       name: `Import_ExcalidrawTest_${Date.now()}.excalidraw`,
       mimeType: "application/json",
       buffer: Buffer.from(fixtureContent),
     });
-
-    // Wait for upload to complete - the UploadStatus component shows "Done" when finished
-    await expect(page.getByText("Uploads (Done)")).toBeVisible({ timeout: 10000 });
-
-    // Reload to ensure dashboard state reflects the newly imported drawing
-    await page.reload({ waitUntil: "networkidle" });
+    await importResponses;
 
     // Verify the drawing was imported - the drawing name is the filename without extension
     await page.getByPlaceholder("Search drawings...").fill("Import_ExcalidrawTest");
-    await page.waitForTimeout(1000);
-
     const importedCards = page.locator("[id^='drawing-card-']");
-    await expect(importedCards.first()).toBeVisible({ timeout: 10000 });
+    await expect(importedCards.first()).toBeVisible({ timeout: 30000 });
   });
 
   test("should import JSON drawing file from Dashboard", async ({ page }) => {
@@ -281,31 +291,18 @@ test.describe.serial("Import Functionality", () => {
 
     const fileInput = page.locator("#dashboard-import");
 
+    const importResponses = waitForDrawingImports(page, 1);
     await fileInput.setInputFiles({
       name: `${testName}.json`,
       mimeType: "application/json",
       buffer: Buffer.from(jsonContent),
     });
-
-    // Wait for upload to complete - the UploadStatus component shows "Done" when finished
-    await expect(page.getByText("Uploads (Done)")).toBeVisible({ timeout: 15000 });
-
-    // Check if upload failed (shows "Failed" text in the upload status)
-    const failedIndicator = page.getByText("Failed");
-    if (await failedIndicator.isVisible()) {
-      console.log("Import failed - skipping rest of test");
-      return;
-    }
-
-    // Reload to force a fresh fetch of drawings after import
-    await page.reload({ waitUntil: "networkidle" });
+    await importResponses;
 
     // Clear any existing search and search for the imported drawing
     const searchInput = page.getByPlaceholder("Search drawings...");
     await searchInput.clear();
     await searchInput.fill(testName);
-    await page.waitForTimeout(1500);
-
     // Wait for the card to appear - the drawing should be visible in the UI
     const importedCards = page.locator("[id^='drawing-card-']");
     await expect(importedCards.first()).toBeVisible({ timeout: 15000 });
@@ -326,10 +323,8 @@ test.describe.serial("Import Functionality", () => {
       buffer: Buffer.from(invalidContent),
     });
 
-    // Wait for upload to complete and check for failure indicator
-    await expect(page.getByText("Uploads (Done)")).toBeVisible({ timeout: 10000 });
-    // Should show "Failed" status in the upload status component
-    await expect(page.getByText("Failed")).toBeVisible();
+    // Should show error modal for invalid file
+    await expect(page.getByText("Import Failed")).toBeVisible({ timeout: 10000 });
   });
 
   test("should import multiple drawings at once", async ({ page }) => {
@@ -364,17 +359,15 @@ test.describe.serial("Import Functionality", () => {
     ];
 
     const fileInput = page.locator("#dashboard-import");
+    const importResponses = waitForDrawingImports(page, files.length);
     await fileInput.setInputFiles(files);
-
-    // Wait for upload to complete - the UploadStatus component shows "Done" when finished
-    await expect(page.getByText("Uploads (Done)")).toBeVisible({ timeout: 10000 });
+    await importResponses;
 
     // Verify both were imported by searching for the unique prefix
     await page.getByPlaceholder("Search drawings...").fill(searchPrefix);
-    await page.waitForTimeout(500);
 
     const importedCards = page.locator("[id^='drawing-card-']");
-    await expect(importedCards).toHaveCount(2);
+    await expect(importedCards).toHaveCount(2, { timeout: 30000 });
   });
 });
 

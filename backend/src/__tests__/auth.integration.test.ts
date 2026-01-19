@@ -20,8 +20,8 @@ describe("Authentication flows", () => {
     setupTestDb();
     prisma = getTestPrisma();
     await initTestDb(prisma);
-    const appModule = await import("../index");
-    app = appModule.default || appModule.app || appModule;
+    const appModule = (await import("../index")) as { default: unknown };
+    app = appModule.default;
   });
 
   beforeEach(async () => {
@@ -51,7 +51,9 @@ describe("Authentication flows", () => {
       .set("x-csrf-token", token)
       .send({ username: "admin", password: "password123" });
 
-    return login.headers["set-cookie"] as string[] | undefined;
+    const cookies = login.headers["set-cookie"];
+    if (!cookies) return undefined;
+    return Array.isArray(cookies) ? cookies : [cookies];
   };
 
   afterAll(async () => {

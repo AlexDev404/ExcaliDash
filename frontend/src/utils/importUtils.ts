@@ -2,6 +2,12 @@ import { exportToSvg } from "@excalidraw/excalidraw";
 import { api } from "../api";
 import { type UploadStatus } from "../context/UploadContext";
 
+export type ImportResult = {
+  success: number;
+  failed: number;
+  errors: string[];
+};
+
 export const importDrawings = async (
   files: File[],
   targetCollectionId: string | null,

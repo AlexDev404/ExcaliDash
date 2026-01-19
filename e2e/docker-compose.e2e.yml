@@ -22,6 +22,7 @@ services:
       - DATABASE_URL=file:/app/prisma/e2e-test.db
       - PORT=8000
       - NODE_ENV=test
+      - RESET_DB_ON_START=true
       # Include both with and without :80 because browsers omit default ports in Origin.
       - FRONTEND_URL=http://frontend,http://frontend:80,http://localhost:5173
     ports:
@@ -70,7 +71,7 @@ services:
         condition: service_healthy
     environment:
       - BASE_URL=http://frontend:80
-      - API_URL=http://backend:8000
+      - API_URL=http://frontend:80/api
       - NO_SERVER=true
       - CI=true
     volumes:

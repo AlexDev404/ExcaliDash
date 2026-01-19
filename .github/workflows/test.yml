@@ -108,7 +108,7 @@ jobs:
         run: |
           # Start backend server in background
           cd backend
-          DATABASE_URL="file:${{ github.workspace }}/backend/prisma/e2e-test.db" FRONTEND_URL="http://localhost:5173" npm run dev &
+          NODE_ENV="test" DATABASE_URL="file:${{ github.workspace }}/backend/prisma/e2e-test.db" FRONTEND_URL="http://localhost:5173" npm run dev &
           BACKEND_PID=$!
           cd ..
           
@@ -150,7 +150,11 @@ jobs:
           
           exit $TEST_EXIT_CODE
         env:
+          AUTH_USERNAME: admin
+          AUTH_PASSWORD: admin123
           DATABASE_URL: file:${{ github.workspace }}/backend/prisma/e2e-test.db
+          CSRF_MAX_REQUESTS: "10000"
+          RATE_LIMIT_MAX_REQUESTS: "20000"
       
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

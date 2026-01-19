@@ -804,6 +804,55 @@ app.post("/auth/password", async (req, res) => {
   return res.json(authChangePasswordResponse(updated));
 });
 
+app.post("/auth/test/must-reset", async (req, res) => {
+  if (process.env.NODE_ENV !== "test") {
+    return res.status(404).json({
+      error: "Not found",
+      message: "Endpoint is only available in test environments.",
+    });
+  }
+
+  const session = getAuthSessionFromCookie(req.headers.cookie, authConfig);
+  if (!session) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Authentication required",
+    });
+  }
+
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { id: true, role: true },
+  });
+
+  if (!currentUser || currentUser.role !== "ADMIN") {
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "Admin privileges required.",
+    });
+  }
+
+  const payloadSchema = z.object({ enabled: z.boolean() });
+  const parsed = payloadSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Invalid payload",
+      message: "Expected { enabled: boolean }.",
+    });
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: currentUser.id },
+    data: { mustResetPassword: parsed.data.enabled },
+    select: { id: true, username: true, email: true, role: true, mustResetPassword: true },
+  });
+
+  res.setHeader("Cache-Control", "no-store");
+  return res.json({
+    user: toAuthUserWithResetFlag(updated as AuthenticatedUser & { mustResetPassword: boolean }),
+  });
+});
+
 app.post("/auth/register", async (req, res) => {
   const config = await getSystemConfig();
   const existingUsers = await prisma.user.count();
@@ -1930,11 +1979,16 @@ const ensureTrashCollection = async () => {
   }
 };
 
+const shouldEnsureInitialAdmin =
+  process.env.NODE_ENV !== "test" && process.env.SKIP_INITIAL_ADMIN !== "true";
+
 httpServer.listen(PORT, async () => {
   await initializeUploadDir();
   await ensureTrashCollection();
   await ensureSystemConfig();
-  await ensureInitialAdminUser();
+  if (shouldEnsureInitialAdmin) {
+    await ensureInitialAdminUser();
+  }
   console.log(`Server running on port ${PORT}`);
 });
 

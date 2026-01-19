@@ -388,9 +388,16 @@ test.describe("Drawing Deletion", () => {
     // Card should be gone
     await expect(card).not.toBeVisible();
 
-    // Verify via API that drawing is deleted
-    const response = await request.get(`${API_URL}/drawings/${drawing.id}`);
-    expect(response.status()).toBe(404);
+    // Verify via API that drawing is deleted (allow a short window for backend completion)
+    await expect
+      .poll(
+        async () => {
+          const response = await request.get(`${API_URL}/drawings/${drawing.id}`);
+          return response.status();
+        },
+        { timeout: 5000 }
+      )
+      .toBe(404);
 
     // Remove from cleanup list since it's already deleted
     createdDrawingIds = createdDrawingIds.filter(id => id !== drawing.id);

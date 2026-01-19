@@ -1,10 +1,9 @@
 import type { Page } from "@playwright/test";
-import { PrismaClient } from "../../backend/src/generated/client";
 import { test, expect } from "./fixtures";
 
+const BASE_URL = process.env.BASE_URL || "http://localhost:5173";
 const AUTH_USERNAME = process.env.AUTH_USERNAME || "admin";
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD || "admin123";
-const DATABASE_URL = process.env.DATABASE_URL;
 
 const ensureLoggedOut = async (page: Page) => {
   await page.context().clearCookies();
@@ -57,33 +56,62 @@ const ensureDashboard = async (page: Page) => {
   await expect(page.getByPlaceholder("Search drawings...")).toBeVisible({ timeout: 30000 });
 };
 
-const setMustResetPassword = async (enabled: boolean) => {
-  if (!DATABASE_URL) {
-    throw new Error("DATABASE_URL is not set for e2e test.");
-  }
+type CsrfInfo = {
+  token: string;
+  headerName: string;
+};
 
-  const prisma = new PrismaClient({
-    datasources: {
-      db: { url: DATABASE_URL },
-    },
+const fetchCsrfInfo = async (page: Page): Promise<CsrfInfo> => {
+  const response = await page.request.get(`${BASE_URL}/api/csrf-token`, {
+    headers: { origin: BASE_URL },
   });
 
-  try {
-    const admin = await prisma.user.findFirst({
-      where: { username: AUTH_USERNAME },
-      select: { id: true },
-    });
+  if (!response.ok()) {
+    const text = await response.text();
+    throw new Error(
+      `Failed to fetch CSRF token: ${response.status()} ${text || "(empty response)"}`
+    );
+  }
 
-    if (!admin) {
-      throw new Error(`Admin user ${AUTH_USERNAME} not found.`);
-    }
+  const data = (await response.json()) as { token: string; header?: string };
+  if (!data || typeof data.token !== "string" || data.token.trim().length === 0) {
+    throw new Error("Failed to fetch CSRF token: missing token in response");
+  }
 
-    await prisma.user.update({
-      where: { id: admin.id },
-      data: { mustResetPassword: enabled },
+  const headerName =
+    typeof data.header === "string" && data.header.trim().length > 0
+      ? data.header
+      : "x-csrf-token";
+
+  return { token: data.token, headerName };
+};
+
+const setMustResetPassword = async (page: Page, enabled: boolean) => {
+  const csrfInfo = await fetchCsrfInfo(page);
+  let response = await page.request.post(`${BASE_URL}/api/auth/test/must-reset`, {
+    headers: {
+      origin: BASE_URL,
+      "Content-Type": "application/json",
+      [csrfInfo.headerName]: csrfInfo.token,
+    },
+    data: { enabled },
+  });
+
+  if (!response.ok() && response.status() === 403) {
+    const refreshed = await fetchCsrfInfo(page);
+    response = await page.request.post(`${BASE_URL}/api/auth/test/must-reset`, {
+      headers: {
+        origin: BASE_URL,
+        "Content-Type": "application/json",
+        [refreshed.headerName]: refreshed.token,
+      },
+      data: { enabled },
     });
-  } finally {
-    await prisma.$disconnect();
+  }
+
+  if (!response.ok()) {
+    const text = await response.text();
+    throw new Error(`Failed to toggle mustResetPassword: ${response.status()} ${text}`);
   }
 };
 
@@ -107,7 +135,7 @@ test.describe("Admin password reset", () => {
       await expect(page.getByPlaceholder("Search drawings...")).toBeVisible({ timeout: 30000 });
     }
 
-    await setMustResetPassword(true);
+    await setMustResetPassword(page, true);
     await ensureLoggedOut(page);
 
     await login(page, AUTH_PASSWORD);

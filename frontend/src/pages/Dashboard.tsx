@@ -306,10 +306,20 @@ export const Dashboard: React.FC = () => {
     const targetCollectionId = selectedCollectionId === undefined ? null : selectedCollectionId;
     
     // Use the global upload context
-    uploadFiles(fileArray, targetCollectionId).finally(() => {
+    try {
+      const result = await uploadFiles(fileArray, targetCollectionId);
+      if (result.failed > 0) {
+        setShowImportError({
+          isOpen: true,
+          message: result.errors.length > 0
+            ? result.errors.join("\n")
+            : "Some files failed to import.",
+        });
+      }
+    } finally {
       // Refresh after all uploads complete (success or failure)
       refreshData();
-    });
+    }
   };
 
   const handleRenameDrawing = async (id: string, name: string) => {
@@ -532,9 +542,19 @@ export const Dashboard: React.FC = () => {
 
       const drawingFiles = files.filter(f => !f.name.endsWith('.excalidrawlib'));
       if (drawingFiles.length > 0) {
-        uploadFiles(drawingFiles, targetCollectionId).finally(() => {
+        try {
+          const result = await uploadFiles(drawingFiles, targetCollectionId);
+          if (result.failed > 0) {
+            setShowImportError({
+              isOpen: true,
+              message: result.errors.length > 0
+                ? result.errors.join("\n")
+                : "Some files failed to import.",
+            });
+          }
+        } finally {
           refreshData();
-        });
+        }
       }
 
       return;

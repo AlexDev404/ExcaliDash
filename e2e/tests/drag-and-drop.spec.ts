@@ -1,4 +1,5 @@
 import { test, expect } from "./fixtures";
+import type { Page } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
 import {
@@ -17,6 +18,21 @@ import {
  * - Drag files to import drawings
  * - Drag multiple selected drawings
  */
+
+const waitForDrawingImports = async (page: Page, count: number) => {
+  const waiters = Array.from({ length: count }, () =>
+    page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/drawings") &&
+        response.request().method() === "POST"
+    )
+  );
+
+  const responses = await Promise.all(waiters);
+  for (const response of responses) {
+    expect(response.ok()).toBeTruthy();
+  }
+};
 
 test.describe("Drag and Drop - Collections", () => {
   let createdDrawingIds: string[] = [];
@@ -272,17 +288,15 @@ test.describe("Drag and Drop - File Import", () => {
 
     // Find the hidden file input and upload the file
     const fileInput = page.locator("#dashboard-import");
+    const importResponses = waitForDrawingImports(page, 1);
     await fileInput.setInputFiles(fixturePath);
-
-    // Wait for upload to complete - the UploadStatus component shows "Done" when finished
-    await expect(page.getByText("Uploads (Done)")).toBeVisible({ timeout: 10000 });
+    await importResponses;
 
     // Search for the imported drawing (it uses the filename as name)
     await page.getByPlaceholder("Search drawings...").fill("small-image");
-    await page.waitForTimeout(500);
 
     // Verify at least one drawing was imported
     const importedCards = page.locator("[id^='drawing-card-']");
-    await expect(importedCards.first()).toBeVisible();
+    await expect(importedCards.first()).toBeVisible({ timeout: 30000 });
   });
 });

@@ -25,6 +25,15 @@ if [ -f "/app/prisma/dev.db" ]; then
     chmod 666 /app/prisma/dev.db
 fi
 
+# Optionally reset the database (used for E2E runs)
+if [ "${RESET_DB_ON_START}" = "true" ]; then
+    DB_PATH="${DATABASE_URL#file:}"
+    if [ "$DB_PATH" != "$DATABASE_URL" ]; then
+        echo "Resetting database at ${DB_PATH}..."
+        rm -f "${DB_PATH}" "${DB_PATH}-journal" "${DB_PATH}-wal" "${DB_PATH}-shm"
+    fi
+fi
+
 # 3. Run Migrations (Drop privileges to nodejs)
 echo "Running database migrations..."
 su-exec nodejs npx prisma migrate deploy
