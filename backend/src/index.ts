@@ -96,6 +96,22 @@ const normalizeOrigins = (rawOrigins?: string | null): string[] => {
 const allowedOrigins = normalizeOrigins(process.env.FRONTEND_URL);
 console.log("Allowed origins:", allowedOrigins);
 
+const isDev = (process.env.NODE_ENV || "development") !== "production";
+const isLocalDevOrigin = (origin: string): boolean => {
+  // Allow any localhost/127.0.0.1 port in dev (Vite often picks a free port).
+  return (
+    /^http:\/\/localhost:\d+$/i.test(origin) ||
+    /^http:\/\/127\.0\.0\.1:\d+$/i.test(origin)
+  );
+};
+
+const isAllowedOrigin = (origin?: string): boolean => {
+  if (!origin) return true; // non-browser clients / same-origin
+  if (allowedOrigins.includes(origin)) return true;
+  if (isDev && isLocalDevOrigin(origin)) return true;
+  return false;
+};
+
 const uploadDir = path.resolve(__dirname, "../uploads");
 
 const moveFile = async (source: string, destination: string) => {
@@ -138,7 +154,7 @@ app.set("trust proxy", 1);
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, cb) => cb(null, isAllowedOrigin(origin ?? undefined)),
     credentials: true,
   },
   maxHttpBufferSize: 1e8,
@@ -236,7 +252,7 @@ const upload = multer({
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, cb) => cb(null, isAllowedOrigin(origin ?? undefined)),
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"],
     exposedHeaders: ["x-csrf-token"],
@@ -402,7 +418,7 @@ const csrfProtectionMiddleware = (
   const refererValue = Array.isArray(referer) ? referer[0] : referer;
 
   if (originValue) {
-    if (!allowedOrigins.includes(originValue)) {
+    if (!isAllowedOrigin(originValue)) {
       return res.status(403).json({
         error: "CSRF origin mismatch",
         message: "Origin not allowed",
@@ -411,7 +427,7 @@ const csrfProtectionMiddleware = (
   } else if (refererValue) {
     // If no Origin but Referer exists, validate its *origin* (avoid prefix bypass)
     const refererOrigin = getOriginFromReferer(refererValue);
-    if (!refererOrigin || !allowedOrigins.includes(refererOrigin)) {
+    if (!refererOrigin || !isAllowedOrigin(refererOrigin)) {
       return res.status(403).json({
         error: "CSRF referer mismatch",
         message: "Referer not allowed",
