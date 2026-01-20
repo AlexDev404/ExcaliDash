@@ -30,7 +30,9 @@ let activeConfig: SecurityConfig = { ...defaultConfig };
  * Configure security settings
  * @param config Partial configuration to merge with defaults
  */
-export const configureSecuritySettings = (config: Partial<SecurityConfig>): void => {
+export const configureSecuritySettings = (
+  config: Partial<SecurityConfig>
+): void => {
   activeConfig = { ...activeConfig, ...config };
 };
 
@@ -318,10 +320,13 @@ export const appStateSchema = z
       .optional()
       .nullable(),
     currentItemRoundness: z
-      .object({
-        type: z.enum(["round", "sharp"]),
-        value: z.number().finite().min(0).max(1),
-      })
+      .union([
+        z.enum(["sharp", "round"]),
+        z.object({
+          type: z.enum(["round", "sharp"]),
+          value: z.number().finite().min(0).max(1),
+        }),
+      ])
       .optional()
       .nullable(),
     currentItemFontSize: z
@@ -427,10 +432,19 @@ export const sanitizeDrawingData = (data: {
       ];
 
       // Dangerous URL protocols to block entirely
-      const dangerousProtocols = [/^javascript:/i, /^vbscript:/i, /^data:text\/html/i];
+      const dangerousProtocols = [
+        /^javascript:/i,
+        /^vbscript:/i,
+        /^data:text\/html/i,
+      ];
 
       // Suspicious patterns for security validation within data URLs
-      const suspiciousPatterns = [/<script/i, /javascript:/i, /on\w+\s*=/i, /<iframe/i];
+      const suspiciousPatterns = [
+        /<script/i,
+        /javascript:/i,
+        /on\w+\s*=/i,
+        /<iframe/i,
+      ];
 
       // Maximum size for dataURL (configurable, default 10MB to prevent DoS)
       const MAX_DATAURL_SIZE = activeConfig.maxDataUrlSize;
@@ -448,8 +462,8 @@ export const sanitizeDrawingData = (data: {
                 const normalizedValue = value.toLowerCase();
 
                 // First, check for dangerous protocols - block these entirely
-                const hasDangerousProtocol = dangerousProtocols.some((pattern) =>
-                  pattern.test(value)
+                const hasDangerousProtocol = dangerousProtocols.some(
+                  (pattern) => pattern.test(value)
                 );
 
                 if (hasDangerousProtocol) {
@@ -465,8 +479,8 @@ export const sanitizeDrawingData = (data: {
 
                 if (isSafeImageType) {
                   // Check for suspicious content and size limits
-                  const hasSuspiciousContent = suspiciousPatterns.some((pattern) =>
-                    pattern.test(value)
+                  const hasSuspiciousContent = suspiciousPatterns.some(
+                    (pattern) => pattern.test(value)
                   );
                   const isTooLarge = value.length > MAX_DATAURL_SIZE;
 
@@ -570,7 +584,7 @@ const getCsrfSecret = (): Buffer => {
   const envLabel = process.env.NODE_ENV ? ` (${process.env.NODE_ENV})` : "";
   console.warn(
     `[security] CSRF_SECRET is not set${envLabel}. Using an ephemeral per-process secret. ` +
-    "For horizontal scaling (k8s), set CSRF_SECRET to the same value on all instances."
+      "For horizontal scaling (k8s), set CSRF_SECRET to the same value on all instances."
   );
   return cachedCsrfSecret;
 };

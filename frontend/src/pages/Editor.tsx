@@ -301,6 +301,7 @@ export const Editor: React.FC = () => {
 
     try {
       const persistableAppState = {
+        ...appState,
         viewBackgroundColor: appState?.viewBackgroundColor || '#ffffff',
         gridSize: appState?.gridSize || null,
       };
