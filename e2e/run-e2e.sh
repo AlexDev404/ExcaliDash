@@ -64,7 +64,7 @@ elif [ "$CI" = "true" ]; then
   CI=true NO_SERVER=true npx playwright test
 else
   echo "   Mode: Headless"
-  NO_SERVER=${NO_SERVER:-false} npx playwright test
+  PWDEBUG=${PWDEBUG:-false} NO_SERVER=${NO_SERVER:-false} npx playwright test
 fi
 
 echo ""

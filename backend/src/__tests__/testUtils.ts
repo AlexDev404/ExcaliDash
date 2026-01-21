@@ -68,6 +68,7 @@ export const cleanupTestDb = async (prisma: PrismaClient) => {
   });
   await prisma.user.deleteMany({});
   await prisma.systemConfig.deleteMany({});
+  await prisma.loginAttempt.deleteMany({});
 };
 
 /**

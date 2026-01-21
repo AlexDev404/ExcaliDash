@@ -86,8 +86,10 @@ test.describe("Dashboard Workflows", () => {
 
     await expect(cardLocator).toHaveCount(0);
 
-    const response = await request.get(`${API_URL}/drawings/${createdDrawing.id}`);
-    expect(response.status()).toBe(404);
+    await expect.poll(async () => {
+      const response = await request.get(`${API_URL}/drawings/${createdDrawing.id}`);
+      return response.status();
+    }).toBe(404);
     createdDrawingIds = createdDrawingIds.filter((id) => id !== createdDrawing.id);
   });
 

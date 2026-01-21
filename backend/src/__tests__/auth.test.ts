@@ -17,6 +17,11 @@ describe("Auth utilities", () => {
     expect(config.minPasswordLength).toBe(7);
   });
 
+  it("supports disabling auth via env", () => {
+    const config = buildAuthConfig({ AUTH_ENABLED: "false" });
+    expect(config.enabled).toBe(false);
+  });
+
   it("hashes and verifies passwords", () => {
     const hashed = hashPassword("super-secret");
     expect(verifyPassword("super-secret", hashed)).toBe(true);

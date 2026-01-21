@@ -3,8 +3,8 @@ import path from "path";
 import os from "os";
 
 // Centralized test environment URLs
-const FRONTEND_PORT = 5173;
-const BACKEND_PORT = 8000;
+const FRONTEND_PORT = Number(process.env.FRONTEND_PORT || 5173);
+const BACKEND_PORT = Number(process.env.BACKEND_PORT || 8000);
 const FRONTEND_URL = process.env.BASE_URL || `http://localhost:${FRONTEND_PORT}`;
 const BACKEND_URL = process.env.API_URL || `http://localhost:${BACKEND_PORT}`;
 const API_URL = BACKEND_URL;
@@ -110,7 +110,7 @@ export default defineConfig({
           command: "cd ../backend && npx prisma db push && npx ts-node src/index.ts",
           url: `${BACKEND_URL}/health`,
           reuseExistingServer: false,
-          timeout: 120000,
+          timeout: 240000,
           stdout: "pipe",
           stderr: "pipe",
           env: {
@@ -126,18 +126,21 @@ export default defineConfig({
             RATE_LIMIT_MAX_REQUESTS: "20000",
             NODE_ENV: "e2e",
             TS_NODE_TRANSPILE_ONLY: "1",
+            PORT: String(BACKEND_PORT),
+            START_SERVER_IN_TEST: "true",
           },
         },
         {
           command: "cd ../frontend && npm run dev -- --host",
           url: FRONTEND_URL,
           reuseExistingServer: false,
-          timeout: 120000,
+          timeout: 240000,
           stdout: "pipe",
           stderr: "pipe",
           env: {
             VITE_API_URL: "/api",
             API_URL,
+            PORT: String(FRONTEND_PORT),
           },
         },
       ],

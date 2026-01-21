@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
+import { vi } from "vitest";
 import {
   cleanupTestDb,
   getTestDatabaseUrl,
@@ -22,6 +23,11 @@ describe("Authentication flows", () => {
     await initTestDb(prisma);
     const appModule = (await import("../index")) as { default: unknown };
     app = appModule.default;
+  });
+
+  beforeEach(() => {
+    delete process.env.LOGIN_RATE_LIMIT_MAX;
+    delete process.env.LOGIN_MAX_FAILURES;
   });
 
   beforeEach(async () => {
@@ -109,4 +115,47 @@ describe("Authentication flows", () => {
     expect(register.status).toBe(201);
     expect(register.body.user.username).toBe("user1");
   });
+
+  it("locks out after repeated failed logins", async () => {
+    process.env.LOGIN_RATE_LIMIT_MAX = "100";
+    process.env.LOGIN_MAX_FAILURES = "2";
+
+    const token = await fetchCsrfToken();
+    await request(app)
+      .post("/auth/bootstrap")
+      .set("x-csrf-token", token)
+      .send({ username: "admin", password: "password123" });
+
+    let loginToken = await fetchCsrfToken();
+    await request(app)
+      .post("/auth/login")
+      .set("x-csrf-token", loginToken)
+      .send({ username: "admin", password: "wrong" });
+
+    loginToken = await fetchCsrfToken();
+    const locked = await request(app)
+      .post("/auth/login")
+      .set("x-csrf-token", loginToken)
+      .send({ username: "admin", password: "wrong" });
+
+    expect(locked.status).toBe(429);
+    expect(locked.body.error).toBe("Account locked");
+  });
+
+  it("blocks auth endpoints when disabled", async () => {
+    process.env.AUTH_ENABLED = "false";
+    process.env.NODE_ENV = "test";
+    process.env.DATABASE_URL = getTestDatabaseUrl();
+
+    // Reset module cache so the new env is read
+    vi.resetModules();
+    const appModule = (await import("../index")) as { default: unknown };
+    const disabledApp = appModule.default;
+
+    const response = await request(disabledApp).post("/auth/login");
+    expect(response.status).toBe(404);
+
+    process.env.AUTH_ENABLED = "true";
+    vi.resetModules();
+  }, 20000);
 });

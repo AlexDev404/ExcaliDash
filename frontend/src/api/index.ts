@@ -93,6 +93,20 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Reset auth state when auth is disabled
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (
+      error.response?.status === 404 &&
+      error.response?.data?.message?.includes("Authentication is disabled")
+    ) {
+      unauthorizedHandler?.();
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Add response interceptor to handle CSRF token errors
 api.interceptors.response.use(
   (response) => response,

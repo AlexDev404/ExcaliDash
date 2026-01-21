@@ -107,7 +107,7 @@ const allowedOrigins = normalizeOrigins(process.env.FRONTEND_URL);
 console.log("Allowed origins:", allowedOrigins);
 
 const authConfig = buildAuthConfig();
-console.log("[auth] Auth middleware enabled.");
+console.log(`[auth] Auth middleware ${authConfig.enabled ? "enabled" : "disabled"}.`);
 
 const uploadDir = path.resolve(__dirname, "../uploads");
 
@@ -499,6 +499,16 @@ const authExemptPaths = new Set([
   "/auth/password",
 ]);
 
+const authDisabledPaths = new Set([
+  "/auth/login",
+  "/auth/logout",
+  "/auth/register",
+  "/auth/bootstrap",
+  "/auth/registration/toggle",
+  "/auth/admins",
+  "/auth/password",
+]);
+
 const authNeedsSession = new Set([
   "/auth/logout",
   "/auth/registration/toggle",
@@ -641,12 +651,179 @@ const csrfProtectionMiddleware = (
 
 // Apply authentication and CSRF protection to all routes
 app.use(authMiddleware);
+
+app.use((req, res, next) => {
+  if (!authConfig.enabled && authDisabledPaths.has(req.path)) {
+    return res.status(404).json({
+      error: "Not found",
+      message: "Authentication is disabled.",
+    });
+  }
+  return next();
+});
+
 app.use(csrfProtectionMiddleware);
+
+app.use((req, res, next) => {
+  if (!authConfig.enabled) {
+    res.locals.authUserId = "anonymous";
+  }
+  next();
+});
 
 const authLoginSchema = z.object({
   username: z.string().trim().min(1).max(200),
   password: z.string().min(1).max(512),
 });
+
+const LOGIN_RATE_LIMIT_WINDOW = 10 * 60 * 1000;
+const LOGIN_LOCKOUT_WINDOW = 15 * 60 * 1000;
+const getLoginRateLimitMax = () => {
+  const parsed = Number(process.env.LOGIN_RATE_LIMIT_MAX);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 10;
+  }
+  return parsed;
+};
+const getLoginMaxFailures = () => {
+  const parsed = Number(process.env.LOGIN_MAX_FAILURES);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 5;
+  }
+  return parsed;
+};
+type LoginAttemptEntry = {
+  id: string;
+  identifier: string;
+  ip: string;
+  count: number;
+  failures: number;
+  resetTime: Date;
+  lockoutUntil: Date | null;
+  lastAttempt: Date;
+};
+
+const LOGIN_ATTEMPT_RETENTION = 24 * 60 * 60 * 1000;
+const LOGIN_ATTEMPT_CLEANUP_INTERVAL = 10 * 60 * 1000;
+
+const normalizeLoginAttemptIdentifier = (identifier: string) => {
+  const trimmed = identifier.trim();
+  return trimmed.length > 0 ? trimmed.toLowerCase() : "unknown";
+};
+
+const normalizeLoginAttemptIp = (ip: string) => {
+  const trimmed = ip.trim();
+  return trimmed.length > 0 ? trimmed.toLowerCase() : "unknown";
+};
+
+const cleanupLoginAttempts = async () => {
+  const cutoff = new Date(Date.now() - LOGIN_ATTEMPT_RETENTION);
+  await prisma.loginAttempt.deleteMany({
+    where: {
+      lastAttempt: { lt: cutoff },
+    },
+  });
+};
+
+setInterval(() => {
+  void cleanupLoginAttempts().catch((error) => {
+    console.error("Failed to cleanup login attempts:", error);
+  });
+}, LOGIN_ATTEMPT_CLEANUP_INTERVAL).unref();
+
+const resolveLoginAttempt = async (identifier: string, ip: string): Promise<LoginAttemptEntry> => {
+  const now = new Date();
+  const normalizedIdentifier = normalizeLoginAttemptIdentifier(identifier);
+  const normalizedIp = normalizeLoginAttemptIp(ip);
+  const resetTime = new Date(now.getTime() + LOGIN_RATE_LIMIT_WINDOW);
+  const existing = await prisma.loginAttempt.findUnique({
+    where: {
+      identifier_ip: { identifier: normalizedIdentifier, ip: normalizedIp },
+    },
+  });
+
+  if (!existing) {
+    return prisma.loginAttempt.create({
+      data: {
+        identifier: normalizedIdentifier,
+        ip: normalizedIp,
+        resetTime,
+        lastAttempt: now,
+      },
+    });
+  }
+
+  const updateData: Prisma.LoginAttemptUpdateInput = {
+    lastAttempt: now,
+  };
+
+  if (existing.lockoutUntil && now >= existing.lockoutUntil) {
+    updateData.lockoutUntil = null;
+    updateData.failures = 0;
+    updateData.count = 0;
+    updateData.resetTime = resetTime;
+  } else if (now > existing.resetTime && !existing.lockoutUntil) {
+    updateData.count = 0;
+    updateData.resetTime = resetTime;
+  }
+
+  return prisma.loginAttempt.update({
+    where: { id: existing.id },
+    data: updateData,
+  });
+};
+
+const incrementLoginAttemptCount = async (entryId: string): Promise<LoginAttemptEntry> =>
+  prisma.loginAttempt.update({
+    where: { id: entryId },
+    data: {
+      count: { increment: 1 },
+      lastAttempt: new Date(),
+    },
+  });
+
+const registerLoginFailure = async (entry: LoginAttemptEntry): Promise<LoginAttemptEntry> => {
+  const now = new Date();
+  const nextFailures = entry.failures + 1;
+  if (nextFailures >= getLoginMaxFailures()) {
+    return prisma.loginAttempt.update({
+      where: { id: entry.id },
+      data: {
+        failures: nextFailures,
+        lockoutUntil: new Date(now.getTime() + LOGIN_LOCKOUT_WINDOW),
+        count: 0,
+        resetTime: new Date(now.getTime() + LOGIN_RATE_LIMIT_WINDOW),
+        lastAttempt: now,
+      },
+    });
+  }
+
+  return prisma.loginAttempt.update({
+    where: { id: entry.id },
+    data: {
+      failures: { increment: 1 },
+      lastAttempt: now,
+    },
+  });
+};
+
+const clearLoginFailures = async (entryId: string) => {
+  await prisma.loginAttempt.update({
+    where: { id: entryId },
+    data: {
+      failures: 0,
+      lockoutUntil: null,
+      count: 0,
+      resetTime: new Date(Date.now() + LOGIN_RATE_LIMIT_WINDOW),
+      lastAttempt: new Date(),
+    },
+  });
+};
+
+const isLoginLockedOut = (entry: { lockoutUntil: Date | null; failures: number }): boolean => {
+  if (!entry.lockoutUntil) return false;
+  return Date.now() < entry.lockoutUntil.getTime();
+};
 
 const authChangePasswordSchema = z.object({
   currentPassword: z.string().min(1).max(512),
@@ -669,6 +846,17 @@ const adminUpdateSchema = z.object({
 });
 
 app.get("/auth/status", async (req, res) => {
+  if (!authConfig.enabled) {
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({
+      enabled: false,
+      authenticated: true,
+      registrationEnabled: false,
+      bootstrapRequired: false,
+      user: null,
+    });
+  }
+
   const session = getAuthSessionFromCookie(req.headers.cookie, authConfig);
   const config = await getSystemConfig();
   const totalUsers = await prisma.user.count();
@@ -692,6 +880,13 @@ app.get("/auth/status", async (req, res) => {
 });
 
 app.post("/auth/login", async (req, res) => {
+  if (!authConfig.enabled) {
+    return res.status(404).json({
+      error: "Not found",
+      message: "Authentication is disabled.",
+    });
+  }
+
   const parsed = authLoginSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
@@ -702,6 +897,23 @@ app.post("/auth/login", async (req, res) => {
 
   const { username, password } = parsed.data;
   const identifier = username.trim().toLowerCase();
+  const ip = req.ip || req.connection.remoteAddress || "unknown";
+
+  let entry = await resolveLoginAttempt(identifier || "unknown", ip);
+  if (isLoginLockedOut(entry)) {
+    return res.status(429).json({
+      error: "Account locked",
+      message: "Too many failed attempts. Please try again later.",
+    });
+  }
+
+  entry = await incrementLoginAttemptCount(entry.id);
+  if (entry.count > getLoginRateLimitMax()) {
+    return res.status(429).json({
+      error: "Rate limit exceeded",
+      message: "Too many login attempts. Please try again later.",
+    });
+  }
 
   const user = await prisma.user.findFirst({
     where: {
@@ -722,12 +934,20 @@ app.post("/auth/login", async (req, res) => {
   });
 
   if (!user || !verifyPassword(password, user.passwordHash)) {
+    entry = await registerLoginFailure(entry);
+    if (isLoginLockedOut(entry)) {
+      return res.status(429).json({
+        error: "Account locked",
+        message: "Too many failed attempts. Please try again later.",
+      });
+    }
     return res.status(401).json({
       error: "Unauthorized",
       message: "Invalid username/email or password.",
     });
   }
 
+  await clearLoginFailures(entry.id);
   const token = createAuthSessionToken(authConfig, user.id);
   res.cookie(
     authConfig.cookieName,
@@ -746,6 +966,10 @@ app.post("/auth/login", async (req, res) => {
 });
 
 app.post("/auth/logout", (req, res) => {
+  if (!authConfig.enabled) {
+    return res.status(204).end();
+  }
+
   res.clearCookie(
     authConfig.cookieName,
     buildAuthCookieOptions(isRequestSecure(req), authConfig.cookieSameSite)
@@ -755,6 +979,13 @@ app.post("/auth/logout", (req, res) => {
 });
 
 app.post("/auth/password", async (req, res) => {
+  if (!authConfig.enabled) {
+    return res.status(404).json({
+      error: "Not found",
+      message: "Authentication is disabled.",
+    });
+  }
+
   const session = getAuthSessionFromCookie(req.headers.cookie, authConfig);
   if (!session) {
     return res.status(401).json({
@@ -805,7 +1036,14 @@ app.post("/auth/password", async (req, res) => {
 });
 
 app.post("/auth/test/must-reset", async (req, res) => {
-  if (process.env.NODE_ENV !== "test") {
+  if (!authConfig.enabled) {
+    return res.status(404).json({
+      error: "Not found",
+      message: "Authentication is disabled.",
+    });
+  }
+
+  if (process.env.NODE_ENV !== "test" && process.env.NODE_ENV !== "e2e") {
     return res.status(404).json({
       error: "Not found",
       message: "Endpoint is only available in test environments.",
@@ -854,6 +1092,13 @@ app.post("/auth/test/must-reset", async (req, res) => {
 });
 
 app.post("/auth/register", async (req, res) => {
+  if (!authConfig.enabled) {
+    return res.status(404).json({
+      error: "Not found",
+      message: "Authentication is disabled.",
+    });
+  }
+
   const config = await getSystemConfig();
   const existingUsers = await prisma.user.count();
 
@@ -951,6 +1196,13 @@ app.post("/auth/register", async (req, res) => {
 });
 
 app.post("/auth/bootstrap", async (req, res) => {
+  if (!authConfig.enabled) {
+    return res.status(404).json({
+      error: "Not found",
+      message: "Authentication is disabled.",
+    });
+  }
+
   try {
     const existingUsers = await prisma.user.count();
     if (existingUsers > 0) {
@@ -1052,6 +1304,13 @@ app.post("/auth/bootstrap", async (req, res) => {
 });
 
 app.post("/auth/registration/toggle", async (req, res) => {
+  if (!authConfig.enabled) {
+    return res.status(404).json({
+      error: "Not found",
+      message: "Authentication is disabled.",
+    });
+  }
+
   const session = getAuthSessionFromCookie(req.headers.cookie, authConfig);
   if (!session) {
     return res.status(401).json({
@@ -1090,6 +1349,13 @@ app.post("/auth/registration/toggle", async (req, res) => {
 });
 
 app.post("/auth/admins", async (req, res) => {
+  if (!authConfig.enabled) {
+    return res.status(404).json({
+      error: "Not found",
+      message: "Authentication is disabled.",
+    });
+  }
+
   const session = getAuthSessionFromCookie(req.headers.cookie, authConfig);
   if (!session) {
     return res.status(401).json({
@@ -1979,17 +2245,20 @@ const ensureTrashCollection = async () => {
   }
 };
 
+const isTestEnv = process.env.NODE_ENV === "test";
 const shouldEnsureInitialAdmin =
-  process.env.NODE_ENV !== "test" && process.env.SKIP_INITIAL_ADMIN !== "true";
+  authConfig.enabled && !isTestEnv && process.env.SKIP_INITIAL_ADMIN !== "true";
 
-httpServer.listen(PORT, async () => {
-  await initializeUploadDir();
-  await ensureTrashCollection();
-  await ensureSystemConfig();
-  if (shouldEnsureInitialAdmin) {
-    await ensureInitialAdminUser();
-  }
-  console.log(`Server running on port ${PORT}`);
-});
+if (!isTestEnv || process.env.START_SERVER_IN_TEST === "true") {
+  httpServer.listen(PORT, async () => {
+    await initializeUploadDir();
+    await ensureTrashCollection();
+    await ensureSystemConfig();
+    if (shouldEnsureInitialAdmin) {
+      await ensureInitialAdminUser();
+    }
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
 export default app;

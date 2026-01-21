@@ -62,6 +62,18 @@ const parseSameSite = (rawValue?: string): AuthSameSite => {
   return DEFAULT_COOKIE_SAMESITE;
 };
 
+const parseAuthEnabled = (rawValue?: string): boolean => {
+  if (!rawValue) return true;
+  const normalized = rawValue.trim().toLowerCase();
+  if (["false", "0", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  if (["true", "1", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  return true;
+};
+
 const resolveAuthSecret = (enabled: boolean, env: NodeJS.ProcessEnv): Buffer => {
   if (!enabled) return Buffer.alloc(0);
 
@@ -80,17 +92,18 @@ const resolveAuthSecret = (enabled: boolean, env: NodeJS.ProcessEnv): Buffer => 
 };
 
 export const buildAuthConfig = (env: NodeJS.ProcessEnv = process.env): AuthConfig => {
+  const enabled = parseAuthEnabled(env.AUTH_ENABLED);
   const sessionTtlHours = parseSessionTtlHours(env.AUTH_SESSION_TTL_HOURS);
   const cookieName = (env.AUTH_COOKIE_NAME || DEFAULT_COOKIE_NAME).trim();
   const cookieSameSite = parseSameSite(env.AUTH_COOKIE_SAMESITE);
   const minPasswordLength = parseMinPasswordLength(env.AUTH_MIN_PASSWORD_LENGTH);
 
   return {
-    enabled: true,
+    enabled,
     sessionTtlMs: sessionTtlHours * 60 * 60 * 1000,
     cookieName: cookieName.length > 0 ? cookieName : DEFAULT_COOKIE_NAME,
     cookieSameSite,
-    secret: resolveAuthSecret(true, env),
+    secret: resolveAuthSecret(enabled, env),
     minPasswordLength,
   };
 };
