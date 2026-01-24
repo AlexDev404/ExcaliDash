@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Layout } from '../components/Layout';
 import { DrawingCard } from '../components/DrawingCard';
-import { Plus, Search, Loader2, Inbox, Trash2, Folder, ArrowRight, Copy, Upload } from 'lucide-react';
+import { Plus, Search, Loader2, Inbox, Trash2, Folder, ArrowRight, Copy, Upload, CheckSquare, Square, ArrowUp, ArrowDown, ChevronDown, FileText, Calendar, Clock } from 'lucide-react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import * as api from '../api';
 import type { DrawingSummary, Collection } from '../types';
@@ -73,6 +73,7 @@ export const Dashboard: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [showBulkMoveMenu, setShowBulkMoveMenu] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
 
   const [drawingToDelete, setDrawingToDelete] = useState<string | null>(null);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
@@ -256,38 +257,35 @@ export const Dashboard: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [sortedDrawings]);
 
-  const handleSort = (field: SortField) => {
+  const handleSortFieldChange = (field: SortField) => {
     setSortConfig(current => {
-      if (current.field === field) return { ...current, direction: current.direction === 'asc' ? 'desc' : 'asc' };
-      const defaultDirection = field === 'name' ? 'asc' : 'desc';
-      return { field, direction: defaultDirection };
+      // If changing field, use default direction for that field
+      if (current.field !== field) {
+        const defaultDirection = field === 'name' ? 'asc' : 'desc';
+        return { field, direction: defaultDirection };
+      }
+      // If same field, keep current direction
+      return current;
     });
+    setShowSortMenu(false);
   };
 
-  const SortButton = ({ field, label }: { field: SortField; label: string }) => {
-    const isActive = sortConfig.field === field;
-    return (
-      <button
-        onClick={() => handleSort(field)}
-        className={`
-          flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all border-2 border-black dark:border-neutral-700
-          ${isActive
-            ? 'bg-indigo-100 dark:bg-neutral-800 text-indigo-900 dark:text-neutral-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] -translate-y-0.5'
-            : 'bg-white dark:bg-neutral-900 text-slate-600 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5'
-          }
-        `}
-      >
-        {label}
-        <div className="flex flex-col -space-y-1">
-          <svg className={`w-2.5 h-2.5 ${isActive && sortConfig.direction === 'asc' ? 'text-indigo-600 dark:text-neutral-200' : 'text-slate-400 dark:text-neutral-600'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
-          <svg className={`w-2.5 h-2.5 ${isActive && sortConfig.direction === 'desc' ? 'text-indigo-600 dark:text-neutral-200' : 'text-slate-400 dark:text-neutral-600'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-        </div>
-      </button>
-    );
+  const handleSortDirectionToggle = () => {
+    setSortConfig(current => ({
+      ...current,
+      direction: current.direction === 'asc' ? 'desc' : 'asc'
+    }));
   };
 
-  
-    const isTrashView = selectedCollectionId === 'trash';
+  const sortOptions: { field: SortField; label: string; icon: React.ReactNode }[] = [
+    { field: 'name', label: 'Name', icon: <FileText size={16} /> },
+    { field: 'createdAt', label: 'Date Created', icon: <Calendar size={16} /> },
+    { field: 'updatedAt', label: 'Date Modified', icon: <Clock size={16} /> },
+  ];
+
+  const currentSortOption = sortOptions.find(opt => opt.field === sortConfig.field) || sortOptions[0];
+
+  const isTrashView = selectedCollectionId === 'trash';
   const handleCreateDrawing = async () => {
     if (isTrashView) return;
     try {
@@ -513,6 +511,19 @@ export const Dashboard: React.FC = () => {
   }, [selectedCollectionId, collections]);
 
   const hasSelection = selectedIds.size > 0;
+  const allSelected = sortedDrawings.length > 0 && selectedIds.size === sortedDrawings.length;
+  
+  const handleSelectAll = () => {
+    if (allSelected) {
+      // Deselect all
+      setSelectedIds(new Set());
+      setLastSelectedId(null);
+    } else {
+      // Select all
+      const allIds = new Set(sortedDrawings.map(d => d.id));
+      setSelectedIds(allIds);
+    }
+  };
 
   const handleDrop = async (e: React.DragEvent, targetCollectionId: string | null) => {
     e.preventDefault();
@@ -685,15 +696,86 @@ export const Dashboard: React.FC = () => {
               </kbd>
             </div>
           </div>
-          <div className="flex items-center gap-2 p-1 overflow-x-auto no-scrollbar">
-            <SortButton field="name" label="Name" />
-            <SortButton field="createdAt" label="Date Created" />
-            <SortButton field="updatedAt" label="Date Modified" />
+          <div className="flex items-center gap-2 p-1">
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSortMenu(!showSortMenu);
+                }}
+                className={clsx(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all border-2 border-black dark:border-neutral-700 whitespace-nowrap h-[42px] w-[180px]",
+                  "bg-white dark:bg-neutral-900 text-slate-700 dark:text-neutral-300 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                )}
+              >
+                <span className="text-indigo-600 dark:text-indigo-400 flex-shrink-0">{currentSortOption.icon}</span>
+                <span className="whitespace-nowrap flex-1 text-left">{currentSortOption.label}</span>
+                <ChevronDown size={16} className="text-slate-400 dark:text-neutral-500 flex-shrink-0" />
+              </button>
+
+              {showSortMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
+                  <div className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-neutral-800 rounded-lg border-2 border-black dark:border-neutral-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] py-1 min-w-[180px]">
+                    {sortOptions.map((option) => (
+                      <button
+                        key={option.field}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSortFieldChange(option.field);
+                        }}
+                        className={clsx(
+                          "w-full px-3 py-2 text-sm text-left flex items-center gap-2 transition-colors",
+                          sortConfig.field === option.field
+                            ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-bold"
+                            : "text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700 hover:text-indigo-600 dark:hover:text-indigo-400"
+                        )}
+                      >
+                        <span className="text-indigo-600 dark:text-indigo-400">{option.icon}</span>
+                        <span>{option.label}</span>
+                        {sortConfig.field === option.field && (
+                          <span className="ml-auto text-xs">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <button
+              onClick={handleSortDirectionToggle}
+              className={clsx(
+                "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all border-2 border-black dark:border-neutral-700 h-[42px] min-w-[42px]",
+                "bg-white dark:bg-neutral-900 text-indigo-600 dark:text-indigo-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+              )}
+              title={sortConfig.direction === 'asc' ? 'Sort Ascending' : 'Sort Descending'}
+            >
+              {sortConfig.direction === 'asc' ? (
+                <ArrowUp size={18} />
+              ) : (
+                <ArrowDown size={18} />
+              )}
+            </button>
           </div>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           <div className="flex items-center gap-2 mr-2">
+            <button
+              onClick={handleSelectAll}
+              disabled={sortedDrawings.length === 0}
+              className={clsx(
+                "h-[42px] w-[42px] flex items-center justify-center rounded-xl border-2 transition-all",
+                sortedDrawings.length > 0
+                  ? "bg-white dark:bg-neutral-800 border-black dark:border-neutral-700 text-indigo-600 dark:text-indigo-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                  : "bg-slate-100 dark:bg-neutral-900 border-slate-300 dark:border-neutral-800 text-slate-300 dark:text-neutral-700 cursor-not-allowed"
+              )}
+              title={allSelected ? "Deselect All" : "Select All"}
+            >
+              {allSelected ? <CheckSquare size={20} /> : <Square size={20} />}
+            </button>
+
             <button
               onClick={handleBulkDeleteClick}
               disabled={!hasSelection}
