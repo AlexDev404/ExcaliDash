@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
+import clsx from 'clsx';
 import { Excalidraw, exportToSvg } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import debounce from 'lodash/debounce';
 import throttle from 'lodash/throttle';
 import { Toaster, toast } from 'sonner';
 import { io, Socket } from 'socket.io-client';
-import { getUserIdentity } from '../utils/identity';
+import { getUserIdentity, type UserIdentity } from '../utils/identity';
+import { useAuth } from '../context/AuthContext';
 import { reconcileElements } from '../utils/sync';
 import { exportFromEditor } from '../utils/exportUtils';
-import type { UserIdentity } from '../utils/identity';
 import * as api from '../api';
 import { useTheme } from '../context/ThemeContext';
 
@@ -46,10 +47,34 @@ const UIOptions = {
   },
 };
 
+// Helper function to generate initials from a name
+const getInitialsFromName = (name: string): string => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase().padEnd(2, name[0] || 'U');
+};
+
+// Helper function to generate a color from a string (consistent hash)
+const getColorFromString = (str: string): string => {
+  const COLORS = [
+    "#ef4444", "#f97316", "#f59e0b", "#84cc16", "#22c55e", "#10b981",
+    "#14b8a6", "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1", "#8b5cf6",
+    "#a855f7", "#d946ef", "#ec4899", "#f43f5e",
+  ];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return COLORS[Math.abs(hash) % COLORS.length];
+};
+
 export const Editor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { user } = useAuth();
   
   const [drawingName, setDrawingName] = useState('Drawing Editor');
   const [isRenaming, setIsRenaming] = useState(false);
@@ -57,6 +82,8 @@ export const Editor: React.FC = () => {
   const [initialData, setInitialData] = useState<any>(null);
   const [isSceneLoading, setIsSceneLoading] = useState(true);
   const [isSavingOnLeave, setIsSavingOnLeave] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [autoHideEnabled, setAutoHideEnabled] = useState(true);
 
   useEffect(() => {
     document.title = `${drawingName} - ExcaliDash`;
@@ -64,9 +91,68 @@ export const Editor: React.FC = () => {
       document.title = 'ExcaliDash';
     };
   }, [drawingName]);
+
+  // Auto-hide header based on mouse movement
+  useEffect(() => {
+    if (!autoHideEnabled || isRenaming) {
+      setIsHeaderVisible(true);
+      return;
+    }
+
+    let hideTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isInTriggerZone = false;
+
+    const handleMouseMove = throttle((e: MouseEvent) => {
+      const wasInTriggerZone = isInTriggerZone;
+      isInTriggerZone = e.clientY < 5;
+
+      if (isInTriggerZone) {
+        // Mouse is in trigger zone - show header
+        setIsHeaderVisible(true);
+        if (hideTimeout !== null) {
+          clearTimeout(hideTimeout);
+          hideTimeout = null;
+        }
+      } else if (wasInTriggerZone) {
+        // Mouse just left trigger zone - start hide timer
+        if (hideTimeout !== null) clearTimeout(hideTimeout);
+        hideTimeout = setTimeout(() => {
+          setIsHeaderVisible(false);
+        }, 2000);
+      }
+      // If mouse is already out of trigger zone and moving, don't reset timer
+    }, 100);
+
+    // Show header initially
+    setIsHeaderVisible(true);
+
+    // Hide after initial delay if mouse doesn't move to top
+    hideTimeout = setTimeout(() => {
+      setIsHeaderVisible(false);
+    }, 3000);
+
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (hideTimeout !== null) clearTimeout(hideTimeout);
+    };
+  }, [autoHideEnabled, isRenaming]);
+  
+  // Use authenticated user identity or fallback to generated identity
+  const [me] = useState<UserIdentity>(() => {
+    if (user) {
+      return {
+        id: user.id,
+        name: user.name,
+        initials: getInitialsFromName(user.name),
+        color: getColorFromString(user.id),
+      };
+    }
+    return getUserIdentity();
+  });
   
   const [peers, setPeers] = useState<Peer[]>([]);
-  const [me] = useState(getUserIdentity());
   const [isReady, setIsReady] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const lastCursorEmit = useRef<number>(0);
@@ -621,7 +707,12 @@ export const Editor: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-neutral-950 overflow-hidden">
-      <header className="h-14 bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 flex items-center px-4 justify-between z-10">
+      <header 
+        className={clsx(
+          "h-14 bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 flex items-center px-4 justify-between z-10 fixed top-0 left-0 right-0 transition-transform duration-300",
+          isHeaderVisible ? "translate-y-0" : "-translate-y-full"
+        )}
+      >
         <div className="flex items-center gap-4">
           <button 
             onClick={handleBackClick} 
@@ -661,6 +752,22 @@ export const Editor: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-3">
+          {/* Auto-hide Toggle */}
+          <button
+            onClick={() => {
+              setAutoHideEnabled(!autoHideEnabled);
+              if (!autoHideEnabled) {
+                setIsHeaderVisible(true);
+              }
+            }}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg text-gray-600 dark:text-gray-300 transition-colors"
+            title={autoHideEnabled ? "Disable auto-hide" : "Enable auto-hide"}
+          >
+            {autoHideEnabled ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </button>
+
+          <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
+
           {/* Download Button */}
           <button
             onClick={() => {
@@ -717,7 +824,13 @@ export const Editor: React.FC = () => {
         </div>
       </header>
 
-      <div className="flex-1 w-full relative" style={{ height: 'calc(100vh - 3.5rem)' }}>
+      <div 
+        className="flex-1 w-full relative transition-all duration-300" 
+        style={{ 
+          height: isHeaderVisible ? 'calc(100vh - 3.5rem)' : '100vh',
+          marginTop: isHeaderVisible ? '3.5rem' : '0'
+        }}
+      >
         {initialData ? (
           <Excalidraw
             key={id}
