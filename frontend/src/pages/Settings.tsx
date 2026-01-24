@@ -92,20 +92,56 @@ export const Settings: React.FC = () => {
                 </button>
 
                 <button
-                    onClick={() => window.location.href = `${api.API_URL}/export`}
+                    onClick={async () => {
+                        try {
+                            const response = await api.get('/export', { responseType: 'blob' });
+                            const blob = new Blob([response.data], { type: 'application/json' });
+                            const url = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `excalidash-export-${new Date().toISOString().split('T')[0]}.json`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(url);
+                        } catch (error) {
+                            console.error('Export failed:', error);
+                            alert('Failed to export data. Please try again.');
+                        }
+                    }}
                     className="flex flex-col items-center justify-center gap-4 p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group"
                 >
                     <div className="w-16 h-16 bg-indigo-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-indigo-100 dark:border-neutral-700 group-hover:border-indigo-200 dark:group-hover:border-neutral-600 transition-colors">
                         <Database size={32} className="text-indigo-600 dark:text-indigo-400" />
                     </div>
                     <div className="text-center">
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Export Data (.sqlite)</h3>
-                        <p className="text-sm text-slate-500 dark:text-neutral-400 font-medium">Download full database backup</p>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Export Data (JSON)</h3>
+                        <p className="text-sm text-slate-500 dark:text-neutral-400 font-medium">Download drawings as JSON</p>
                     </div>
                 </button>
 
                 <button
-                    onClick={() => window.location.href = `${api.API_URL}/export?format=db`}
+                    onClick={async () => {
+                        try {
+                            const response = await api.get('/export?format=db', { responseType: 'blob' });
+                            const blob = new Blob([response.data], { type: 'application/json' });
+                            const url = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `excalidash-export-${new Date().toISOString().split('T')[0]}.json`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(url);
+                        } catch (error) {
+                            console.error('Export failed:', error);
+                            if (error && typeof error === 'object' && 'response' in error && error.response?.status === 403) {
+                                alert('Database export is not available. Please use JSON export instead.');
+                            } else {
+                                alert('Failed to export data. Please try again.');
+                            }
+                        }
+                    }}
                     className="flex flex-col items-center justify-center gap-4 p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group"
                 >
                     <div className="w-16 h-16 bg-blue-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-blue-100 dark:border-neutral-700 group-hover:border-blue-200 dark:group-hover:border-neutral-600 transition-colors">
@@ -113,12 +149,28 @@ export const Settings: React.FC = () => {
                     </div>
                     <div className="text-center">
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Export Data (.db)</h3>
-                        <p className="text-sm text-slate-500 dark:text-neutral-400 font-medium">Download Prisma .db format</p>
+                        <p className="text-sm text-slate-500 dark:text-neutral-400 font-medium">Download Prisma .db format (disabled)</p>
                     </div>
                 </button>
 
                 <button
-                    onClick={() => window.location.href = `${api.API_URL}/export/json`}
+                    onClick={async () => {
+                        try {
+                            const response = await api.get('/export/json', { responseType: 'blob' });
+                            const blob = new Blob([response.data], { type: 'application/zip' });
+                            const url = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `excalidraw-drawings-${new Date().toISOString().split('T')[0]}.zip`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(url);
+                        } catch (error) {
+                            console.error('Export failed:', error);
+                            alert('Failed to export data. Please try again.');
+                        }
+                    }}
                     className="flex flex-col items-center justify-center gap-4 p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group"
                 >
                     <div className="w-16 h-16 bg-emerald-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-emerald-100 dark:border-neutral-700 group-hover:border-emerald-200 dark:group-hover:border-neutral-600 transition-colors">
