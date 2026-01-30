@@ -48,12 +48,14 @@ const resolveDatabaseUrl = (rawUrl?: string) => {
   const prismaDir = path.resolve(backendRoot, "prisma");
   const normalizedRelative = filePath.replace(/^\.\/?/, "");
   const hasLeadingPrismaDir =
-    normalizedRelative === "prisma" ||
-    normalizedRelative.startsWith("prisma/");
+    normalizedRelative === "prisma" || normalizedRelative.startsWith("prisma/");
 
   const absolutePath = path.isAbsolute(filePath)
     ? filePath
-    : path.resolve(hasLeadingPrismaDir ? backendRoot : prismaDir, normalizedRelative);
+    : path.resolve(
+        hasLeadingPrismaDir ? backendRoot : prismaDir,
+        normalizedRelative,
+      );
 
   return `file:${absolutePath}`;
 };
@@ -146,7 +148,7 @@ const io = new Server(httpServer, {
 const prisma = new PrismaClient();
 const parseJsonField = <T>(
   rawValue: string | null | undefined,
-  fallback: T
+  fallback: T,
 ): T => {
   if (!rawValue) return fallback;
   try {
@@ -240,7 +242,7 @@ app.use(
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"],
     exposedHeaders: ["x-csrf-token"],
-  })
+  }),
 );
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -252,8 +254,8 @@ app.use((req, res, next) => {
     if (sizeInMB > 10) {
       console.log(
         `[LARGE REQUEST] ${req.method} ${req.path} - ${sizeInMB.toFixed(
-          2
-        )}MB - Content-Length: ${contentLength} bytes`
+          2,
+        )}MB - Content-Length: ${contentLength} bytes`,
       );
     }
   }
@@ -267,18 +269,18 @@ app.use((req, res, next) => {
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader(
     "Permissions-Policy",
-    "geolocation=(), microphone=(), camera=()"
+    "geolocation=(), microphone=(), camera=()",
   );
 
   res.setHeader(
     "Content-Security-Policy",
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; " +
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com; " +
-    "img-src 'self' data: blob: https:; " +
-    "connect-src 'self' ws: wss:; " +
-    "frame-ancestors 'none';"
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src 'self' https://fonts.gstatic.com; " +
+      "img-src 'self' data: blob: https:; " +
+      "connect-src 'self' ws: wss:; " +
+      "frame-ancestors 'none';",
   );
 
   next();
@@ -287,14 +289,17 @@ app.use((req, res, next) => {
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
 
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, data] of requestCounts.entries()) {
-    if (now > data.resetTime) {
-      requestCounts.delete(ip);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [ip, data] of requestCounts.entries()) {
+      if (now > data.resetTime) {
+        requestCounts.delete(ip);
+      }
     }
-  }
-}, 5 * 60 * 1000).unref();
+  },
+  5 * 60 * 1000,
+).unref();
 
 const RATE_LIMIT_MAX_REQUESTS = (() => {
   const parsed = Number(process.env.RATE_LIMIT_MAX_REQUESTS);
@@ -361,7 +366,10 @@ app.get("/csrf-token", (req, res) => {
     }
     clientLimit.count++;
   } else {
-    csrfRateLimit.set(ip, { count: 1, resetTime: now + CSRF_RATE_LIMIT_WINDOW });
+    csrfRateLimit.set(ip, {
+      count: 1,
+      resetTime: now + CSRF_RATE_LIMIT_WINDOW,
+    });
   }
 
   // Cleanup old rate limit entries occasionally
@@ -376,7 +384,7 @@ app.get("/csrf-token", (req, res) => {
 
   res.json({
     token,
-    header: getCsrfTokenHeader()
+    header: getCsrfTokenHeader(),
   });
 });
 
@@ -384,7 +392,7 @@ app.get("/csrf-token", (req, res) => {
 const csrfProtectionMiddleware = (
   req: express.Request,
   res: express.Response,
-  next: express.NextFunction
+  next: express.NextFunction,
 ) => {
   // Skip CSRF validation for safe methods (GET, HEAD, OPTIONS)
   // Note: /csrf-token is a GET endpoint, so it's automatically exempt
@@ -477,7 +485,7 @@ const drawingCreateSchema = drawingBaseSchema
     },
     {
       message: "Invalid or malicious drawing data detected",
-    }
+    },
   );
 
 const drawingUpdateSchema = drawingBaseSchema
@@ -527,12 +535,12 @@ const drawingUpdateSchema = drawingBaseSchema
     },
     {
       message: "Invalid or malicious drawing data detected",
-    }
+    },
   );
 
 const respondWithValidationErrors = (
   res: express.Response,
-  issues: z.ZodIssue[]
+  issues: z.ZodIssue[],
 ) => {
   res.status(400).json({
     error: "Invalid drawing payload",
@@ -582,7 +590,7 @@ const verifyDatabaseIntegrityAsync = (filePath: string): Promise<boolean> => {
       path.resolve(__dirname, "./workers/db-verify.js"),
       {
         workerData: { filePath },
-      }
+      },
     );
     let timeoutHandle: NodeJS.Timeout;
     let settled = false;
@@ -657,7 +665,7 @@ io.on("connection", (socket) => {
       roomUsers.set(roomId, filteredUsers);
 
       io.to(roomId).emit("presence-update", filteredUsers);
-    }
+    },
   );
 
   socket.on("cursor-move", (data) => {
@@ -682,7 +690,7 @@ io.on("connection", (socket) => {
           io.to(roomId).emit("presence-update", users);
         }
       }
-    }
+    },
   );
 
   socket.on("disconnect", () => {
@@ -1073,8 +1081,9 @@ app.get("/export", async (req, res) => {
     res.setHeader("Content-Type", "application/octet-stream");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="excalidash-db-${new Date().toISOString().split("T")[0]
-      }.${extension}"`
+      `attachment; filename="excalidash-db-${
+        new Date().toISOString().split("T")[0]
+      }.${extension}"`,
     );
 
     const fileStream = fs.createReadStream(dbPath);
@@ -1096,8 +1105,9 @@ app.get("/export/json", async (req, res) => {
     res.setHeader("Content-Type", "application/zip");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="excalidraw-drawings-${new Date().toISOString().split("T")[0]
-      }.zip"`
+      `attachment; filename="excalidraw-drawings-${
+        new Date().toISOString().split("T")[0]
+      }.zip"`,
     );
 
     const archive = archiver("zip", { zlib: { level: 9 } });
@@ -1111,6 +1121,8 @@ app.get("/export/json", async (req, res) => {
 
     const drawingsByCollection: { [key: string]: any[] } = {};
 
+    const exportSource = `${req.protocol}://${req.get("host")}`;
+
     drawings.forEach((drawing: any) => {
       const collectionName = drawing.collection?.name || "Unorganized";
       if (!drawingsByCollection[collectionName]) {
@@ -1118,6 +1130,9 @@ app.get("/export/json", async (req, res) => {
       }
 
       const drawingData = {
+        type: "excalidraw",
+        version: 2,
+        source: exportSource,
         elements: JSON.parse(drawing.elements),
         appState: JSON.parse(drawing.appState),
         files: JSON.parse(drawing.files || "{}"),
@@ -1135,7 +1150,7 @@ app.get("/export/json", async (req, res) => {
         collectionDrawings.forEach((drawing, index) => {
           const fileName = `${drawing.name.replace(
             /[<>:"/\\|?*]/g,
-            "_"
+            "_",
           )}.excalidraw`;
           const filePath = `${folderName}/${fileName}`;
 
@@ -1143,7 +1158,7 @@ app.get("/export/json", async (req, res) => {
             name: filePath,
           });
         });
-      }
+      },
     );
 
     const readmeContent = `ExcaliDash Export
@@ -1161,8 +1176,8 @@ Total Drawings: ${drawings.length}
 
 Collections:
 ${Object.entries(drawingsByCollection)
-        .map(([name, drawings]) => `- ${name}: ${drawings.length} drawings`)
-        .join("\n")}
+  .map(([name, drawings]) => `- ${name}: ${drawings.length} drawings`)
+  .join("\n")}
 `;
 
     archive.append(readmeContent, { name: "README.txt" });
@@ -1207,7 +1222,7 @@ app.post("/import/sqlite", upload.single("db"), async (req, res) => {
     const originalPath = req.file.path;
     const stagedPath = path.join(
       uploadDir,
-      `temp-${Date.now()}-${Math.random().toString(36).slice(2)}.db`
+      `temp-${Date.now()}-${Math.random().toString(36).slice(2)}.db`,
     );
 
     try {
@@ -1234,7 +1249,7 @@ app.post("/import/sqlite", upload.single("db"), async (req, res) => {
       try {
         await fsPromises.access(dbPath);
         await fsPromises.copyFile(dbPath, backupPath);
-      } catch { }
+      } catch {}
 
       await moveFile(stagedPath, dbPath);
     } catch (error) {
