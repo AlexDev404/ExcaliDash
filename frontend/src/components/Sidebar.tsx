@@ -122,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDrop
 }) => {
   const navigate = useNavigate();
-  const { logout, user } = useAuth();
+  const { logout, user, authEnabled } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -286,18 +286,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="min-w-0 flex-1 text-left">Trash</span>
           </button>
 
-          <button
-            onClick={() => navigate('/profile')}
-            className={clsx(
-              "w-full flex items-center gap-3 px-3 py-2 text-sm font-bold rounded-xl transition-all duration-200 border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]",
-              selectedCollectionId === 'PROFILE'
-                ? "bg-indigo-50 dark:bg-neutral-800 text-indigo-900 dark:text-neutral-200 -translate-y-0.5"
-                : "bg-white dark:bg-neutral-900 text-slate-900 dark:text-neutral-200 hover:bg-slate-50 dark:hover:bg-neutral-800 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5"
-            )}
-          >
-            <User size={18} />
-            <span className="min-w-0 flex-1 text-left">Profile</span>
-          </button>
+          {authEnabled && (
+            <button
+              onClick={() => navigate('/profile')}
+              className={clsx(
+                "w-full flex items-center gap-3 px-3 py-2 text-sm font-bold rounded-xl transition-all duration-200 border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]",
+                selectedCollectionId === 'PROFILE'
+                  ? "bg-indigo-50 dark:bg-neutral-800 text-indigo-900 dark:text-neutral-200 -translate-y-0.5"
+                  : "bg-white dark:bg-neutral-900 text-slate-900 dark:text-neutral-200 hover:bg-slate-50 dark:hover:bg-neutral-800 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5"
+              )}
+            >
+              <User size={18} />
+              <span className="min-w-0 flex-1 text-left">Profile</span>
+            </button>
+          )}
 
           <button
             onClick={() => navigate('/settings')}
@@ -313,7 +315,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
 
           {/* User info and logout */}
-          <div className="mt-auto pt-4 border-t-2 border-slate-200 dark:border-neutral-700">
+          {authEnabled && (
+            <div className="mt-auto pt-4 border-t-2 border-slate-200 dark:border-neutral-700">
             {user && (
               <div className="px-3 py-2 text-xs text-slate-500 dark:text-neutral-500 mb-2">
                 <div className="font-semibold text-slate-700 dark:text-neutral-300">{user.name}</div>
@@ -327,7 +330,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <LogOut size={18} />
               <span className="min-w-0 flex-1 text-left">Logout</span>
             </button>
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -402,4 +406,3 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </>
   );
 };
-

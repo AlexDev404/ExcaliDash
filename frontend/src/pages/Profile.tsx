@@ -7,7 +7,7 @@ import type { Collection } from '../types';
 import { User, Lock, Save, X, Shield } from 'lucide-react';
 
 export const Profile: React.FC = () => {
-    const { user: authUser, logout } = useAuth();
+    const { user: authUser, logout, authEnabled } = useAuth();
     const navigate = useNavigate();
     const isAdmin = authUser?.role === 'ADMIN';
     const [collections, setCollections] = useState<Collection[]>([]);
@@ -28,6 +28,10 @@ export const Profile: React.FC = () => {
     const [showPasswordForm, setShowPasswordForm] = useState(false);
 
     useEffect(() => {
+        if (authEnabled === false) {
+            navigate('/settings', { replace: true });
+            return;
+        }
         const fetchData = async () => {
             try {
                 const collectionsData = await api.getCollections();
@@ -50,7 +54,7 @@ export const Profile: React.FC = () => {
             }
         };
         fetchData();
-    }, [authUser, isAdmin]);
+    }, [authEnabled, authUser, isAdmin, navigate]);
 
     const handleToggleRegistration = async () => {
         if (!isAdmin || registrationEnabled === null) return;

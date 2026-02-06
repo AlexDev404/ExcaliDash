@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Logo } from '../components/Logo';
@@ -8,8 +8,23 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, authEnabled, bootstrapRequired, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (authLoading || authEnabled === null) return;
+    if (!authEnabled) {
+      navigate('/', { replace: true });
+      return;
+    }
+    if (bootstrapRequired) {
+      navigate('/register', { replace: true });
+      return;
+    }
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [authEnabled, authLoading, bootstrapRequired, isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

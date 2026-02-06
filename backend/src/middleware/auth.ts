@@ -7,6 +7,76 @@ import { config } from "../config";
 import { PrismaClient } from "../generated/client";
 
 const prisma = new PrismaClient();
+const DEFAULT_SYSTEM_CONFIG_ID = "default";
+const BOOTSTRAP_USER_ID = "bootstrap-admin";
+
+type AuthEnabledCache = {
+  value: boolean;
+  fetchedAt: number;
+};
+
+let authEnabledCache: AuthEnabledCache | null = null;
+const AUTH_ENABLED_TTL_MS = 0;
+
+const getAuthEnabled = async (): Promise<boolean> => {
+  const now = Date.now();
+  if (authEnabledCache && now - authEnabledCache.fetchedAt < AUTH_ENABLED_TTL_MS) {
+    return authEnabledCache.value;
+  }
+
+  const systemConfig = await prisma.systemConfig.upsert({
+    where: { id: DEFAULT_SYSTEM_CONFIG_ID },
+    update: {},
+    create: {
+      id: DEFAULT_SYSTEM_CONFIG_ID,
+      authEnabled: false,
+      registrationEnabled: false,
+    },
+    select: { authEnabled: true },
+  });
+
+  authEnabledCache = { value: systemConfig.authEnabled, fetchedAt: now };
+  return systemConfig.authEnabled;
+};
+
+const getBootstrapActingUser = async () => {
+  const user = await prisma.user.findUnique({
+    where: { id: BOOTSTRAP_USER_ID },
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      name: true,
+      role: true,
+      mustResetPassword: true,
+      isActive: true,
+    },
+  });
+
+  if (user) return user;
+
+  return prisma.user.create({
+    data: {
+      id: BOOTSTRAP_USER_ID,
+      email: "bootstrap@excalidash.local",
+      username: null,
+      passwordHash: "",
+      name: "Bootstrap Admin",
+      role: "ADMIN",
+      mustResetPassword: true,
+      isActive: false,
+    },
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      name: true,
+      role: true,
+      mustResetPassword: true,
+      isActive: true,
+    },
+  });
+};
 
 // Extend Express Request type to include user
 declare global {
@@ -87,6 +157,30 @@ export const requireAuth = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+  // Single-user mode: authentication disabled -> treat all requests as the bootstrap user.
+  try {
+    const authEnabled = await getAuthEnabled();
+    if (!authEnabled) {
+      const user = await getBootstrapActingUser();
+      req.user = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        mustResetPassword: user.mustResetPassword,
+      };
+      return next();
+    }
+  } catch (error) {
+    console.error("Error reading auth mode:", error);
+    res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to read authentication mode",
+    });
+    return;
+  }
+
   const token = extractToken(req);
 
   if (!token) {
@@ -159,6 +253,16 @@ export const optionalAuth = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+  try {
+    const authEnabled = await getAuthEnabled();
+    if (!authEnabled) {
+      return next();
+    }
+  } catch (error) {
+    console.error("Error reading auth mode:", error);
+    return next();
+  }
+
   const token = extractToken(req);
 
   if (!token) {
