@@ -1373,73 +1373,76 @@ app.get("/export/json", requireAuth, asyncHandler(async (req, res, next) => {
     },
   });
 
-    res.setHeader("Content-Type", "application/zip");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="excalidraw-drawings-${new Date().toISOString().split("T")[0]
-      }.zip"`
-    );
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="excalidraw-drawings-${new Date().toISOString().split("T")[0]}.zip"`,
+  );
 
-    const archive = archiver("zip", { zlib: { level: 9 } });
+  const archive = archiver("zip", { zlib: { level: 9 } });
 
-    archive.on("error", (err) => {
-      console.error("Archive error:", err);
-      res.status(500).json({ error: "Failed to create archive" });
-    });
+  archive.on("error", (err) => {
+    console.error("Archive error:", err);
+    res.status(500).json({ error: "Failed to create archive" });
+  });
 
-    archive.pipe(res);
+  archive.pipe(res);
 
-    type DrawingWithCollection = Prisma.DrawingGetPayload<{
-      include: { collection: true };
-    }>;
+  type DrawingWithCollection = Prisma.DrawingGetPayload<{
+    include: { collection: true };
+  }>;
 
-    type DrawingExportItem = {
-      name: string;
-      data: {
-        elements: unknown[];
-        appState: Record<string, unknown>;
-        files: Record<string, unknown>;
-      };
+  type DrawingExportItem = {
+    name: string;
+    data: {
+      type: "excalidraw";
+      version: 2;
+      source: string;
+      elements: unknown[];
+      appState: Record<string, unknown>;
+      files: Record<string, unknown>;
+    };
+  };
+
+  const drawingsByCollection: Record<string, DrawingExportItem[]> = {};
+  const exportSource = `${req.protocol}://${req.get("host")}`;
+
+  drawings.forEach((drawing: DrawingWithCollection) => {
+    const collectionName = drawing.collection?.name || "Unorganized";
+    if (!drawingsByCollection[collectionName]) {
+      drawingsByCollection[collectionName] = [];
+    }
+
+    const drawingData = {
+      type: "excalidraw" as const,
+      version: 2 as const,
+      source: exportSource,
+      elements: JSON.parse(drawing.elements) as unknown[],
+      appState: JSON.parse(drawing.appState) as Record<string, unknown>,
+      files: JSON.parse(drawing.files || "{}") as Record<string, unknown>,
     };
 
-    const drawingsByCollection: Record<string, DrawingExportItem[]> = {};
-
-    drawings.forEach((drawing: DrawingWithCollection) => {
-      const collectionName = drawing.collection?.name || "Unorganized";
-      if (!drawingsByCollection[collectionName]) {
-        drawingsByCollection[collectionName] = [];
-      }
-
-      const drawingData = {
-        elements: JSON.parse(drawing.elements) as unknown[],
-        appState: JSON.parse(drawing.appState) as Record<string, unknown>,
-        files: JSON.parse(drawing.files || "{}") as Record<string, unknown>,
-      };
-
-      drawingsByCollection[collectionName].push({
-        name: drawing.name,
-        data: drawingData,
-      });
+    drawingsByCollection[collectionName].push({
+      name: drawing.name,
+      data: drawingData,
     });
+  });
 
-    Object.entries(drawingsByCollection).forEach(
-      ([collectionName, collectionDrawings]) => {
-        const folderName = collectionName.replace(/[<>:"/\\|?*]/g, "_");
-        collectionDrawings.forEach((drawing, index) => {
-          const fileName = `${drawing.name.replace(
-            /[<>:"/\\|?*]/g,
-            "_"
-          )}.excalidraw`;
-          const filePath = `${folderName}/${fileName}`;
+  Object.entries(drawingsByCollection).forEach(
+    ([collectionName, collectionDrawings]) => {
+      const folderName = collectionName.replace(/[<>:"/\\|?*]/g, "_");
+      collectionDrawings.forEach((drawing) => {
+        const fileName = `${drawing.name.replace(/[<>:"/\\|?*]/g, "_")}.excalidraw`;
+        const filePath = `${folderName}/${fileName}`;
 
-          archive.append(JSON.stringify(drawing.data, null, 2), {
-            name: filePath,
-          });
+        archive.append(JSON.stringify(drawing.data, null, 2), {
+          name: filePath,
         });
-      }
-    );
+      });
+    },
+  );
 
-    const readmeContent = `ExcaliDash Export
+  const readmeContent = `ExcaliDash Export
 
 This archive contains your ExcaliDash drawings organized by collection folders.
 
@@ -1454,13 +1457,13 @@ Total Drawings: ${drawings.length}
 
 Collections:
 ${Object.entries(drawingsByCollection)
-        .map(([name, drawings]) => `- ${name}: ${drawings.length} drawings`)
-        .join("\n")}
+  .map(([name, drawings]) => `- ${name}: ${drawings.length} drawings`)
+  .join("\n")}
 `;
 
-    archive.append(readmeContent, { name: "README.txt" });
+  archive.append(readmeContent, { name: "README.txt" });
 
-    await archive.finalize();
+  await archive.finalize();
 }));
 
 // Database import endpoints should be admin-only or disabled in production
