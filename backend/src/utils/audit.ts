@@ -19,6 +19,18 @@ export interface AuditLogData {
   details?: Record<string, unknown>;
 }
 
+export interface AuditLogResult {
+  id: string;
+  userId: string | null;
+  action: string;
+  resource: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  details: unknown | null;
+  createdAt: Date;
+  user: { id: string; email: string; name: string } | null;
+}
+
 /**
  * Log a security event to the audit log
  * This should be called for important security-related actions
@@ -59,7 +71,7 @@ export const logAuditEvent = async (data: AuditLogData): Promise<void> => {
 export const getAuditLogs = async (
   userId?: string,
   limit: number = 100
-): Promise<unknown[]> => {
+): Promise<AuditLogResult[]> => {
   try {
     // Check if audit logging is enabled via config
     const { config } = await import("../config");
@@ -84,7 +96,14 @@ export const getAuditLogs = async (
 
     return logs.map((log) => ({
       ...log,
-      details: log.details ? JSON.parse(log.details) : null,
+      details: (() => {
+        if (!log.details) return null;
+        try {
+          return JSON.parse(log.details) as unknown;
+        } catch {
+          return null;
+        }
+      })(),
     }));
   } catch (error) {
     // Gracefully handle missing table or other errors

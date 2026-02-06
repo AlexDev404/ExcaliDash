@@ -55,16 +55,12 @@ const resolveJwtSecret = (nodeEnv: string): string => {
 
 const parseFrontendUrl = (raw: string | undefined): string | undefined => {
   if (!raw || raw.trim().length === 0) return undefined;
-  const first = raw.split(",")[0]?.trim();
-  if (!first) return undefined;
-  try {
-    // Validate basic format
-    new URL(/^https?:\/\//i.test(first) ? first : `http://${first}`);
-  } catch {
-    // Don't hard-fail; FRONTEND_URL supports multiple origins in other parts of the app.
-    return first;
-  }
-  return first;
+  const normalized = raw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0)
+    .join(",");
+  return normalized.length > 0 ? normalized : undefined;
 };
 
 const resolveDatabaseUrl = (rawUrl?: string) => {

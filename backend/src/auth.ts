@@ -4,7 +4,7 @@
 import express, { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
-import type { StringValue } from "ms";
+import ms, { type StringValue } from "ms";
 import { z } from "zod";
 import { PrismaClient } from "./generated/client";
 import { config } from "./config";
@@ -135,6 +135,15 @@ const generateTokens = (userId: string, email: string) => {
   return { accessToken, refreshToken };
 };
 
+const resolveExpiresAt = (expiresIn: string, fallbackMs: number): Date => {
+  const parsed = ms(expiresIn as StringValue);
+  const ttlMs = typeof parsed === "number" && parsed > 0 ? parsed : fallbackMs;
+  return new Date(Date.now() + ttlMs);
+};
+
+const getRefreshTokenExpiresAt = (): Date =>
+  resolveExpiresAt(config.jwtRefreshExpiresIn, 7 * 24 * 60 * 60 * 1000);
+
 /**
  * POST /auth/register
  * Register a new user
@@ -209,8 +218,7 @@ router.post("/register", authRateLimiter, async (req: Request, res: Response) =>
       const { accessToken, refreshToken } = generateTokens(user.id, user.email);
 
       if (config.enableRefreshTokenRotation) {
-        const expiresAt = new Date();
-        expiresAt.setTime(expiresAt.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        const expiresAt = getRefreshTokenExpiresAt();
         await prisma.refreshToken.create({
           data: { userId: user.id, token: refreshToken, expiresAt },
         });
@@ -317,8 +325,7 @@ router.post("/register", authRateLimiter, async (req: Request, res: Response) =>
 
     // Store refresh token in database for rotation tracking (if enabled)
     if (config.enableRefreshTokenRotation) {
-      const expiresAt = new Date();
-      expiresAt.setTime(expiresAt.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      const expiresAt = getRefreshTokenExpiresAt();
 
       try {
         await prisma.refreshToken.create({
@@ -446,8 +453,7 @@ router.post("/login", authRateLimiter, async (req: Request, res: Response) => {
 
     // Store refresh token in database for rotation tracking (if enabled)
     if (config.enableRefreshTokenRotation) {
-      const expiresAt = new Date();
-      expiresAt.setTime(expiresAt.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      const expiresAt = getRefreshTokenExpiresAt();
 
       try {
         await prisma.refreshToken.create({
@@ -578,8 +584,7 @@ router.post("/refresh", async (req: Request, res: Response) => {
           const { accessToken, refreshToken: newRefreshToken } = generateTokens(user.id, user.email);
 
           // Store new refresh token
-          const expiresAt = new Date();
-          expiresAt.setTime(expiresAt.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+          const expiresAt = getRefreshTokenExpiresAt();
 
           await prisma.refreshToken.create({
             data: {
@@ -861,7 +866,13 @@ router.post("/password-reset-request", authRateLimiter, async (req: Request, res
       // For now, we'll return the token in development (remove in production!)
       if (config.nodeEnv === "development") {
         console.log(`[DEV] Password reset token for ${email}: ${resetToken}`);
-        const baseUrl = config.frontendUrl || "http://localhost:6767";
+        const baseUrlRaw = config.frontendUrl?.split(",")[0]?.trim();
+        const baseUrlWithProtocol = baseUrlRaw
+          ? /^https?:\/\//i.test(baseUrlRaw)
+            ? baseUrlRaw
+            : `http://${baseUrlRaw}`
+          : "http://localhost:6767";
+        const baseUrl = baseUrlWithProtocol.replace(/\/$/, "");
         console.log(`[DEV] Reset URL: ${baseUrl}/reset-password?token=${resetToken}`);
       }
     }
