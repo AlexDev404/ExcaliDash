@@ -315,10 +315,11 @@ describe("Security Sanitization - Image Data URLs", () => {
 // Database integration tests
 describe("Drawing API - Database Round-Trip", () => {
   const prisma = getTestPrisma();
+  let testUser: { id: string };
 
   beforeAll(async () => {
     setupTestDb();
-    await initTestDb(prisma);
+    testUser = await initTestDb(prisma);
   });
 
   afterAll(async () => {
@@ -343,6 +344,7 @@ describe("Drawing API - Database Round-Trip", () => {
         elements: JSON.stringify([]),
         appState: JSON.stringify({ viewBackgroundColor: "#ffffff" }),
         files: JSON.stringify(files),
+        userId: testUser.id,
       },
     });
     
@@ -381,6 +383,7 @@ describe("Drawing API - Database Round-Trip", () => {
         elements: JSON.stringify([]),
         appState: JSON.stringify({}),
         files: JSON.stringify(files),
+        userId: testUser.id,
       },
     });
     
@@ -404,6 +407,7 @@ describe("Drawing API - Database Round-Trip", () => {
         elements: JSON.stringify([]),
         appState: JSON.stringify({}),
         files: JSON.stringify({}),
+        userId: testUser.id,
       },
     });
     

@@ -55,18 +55,41 @@ export const cleanupTestDb = async (prisma: PrismaClient) => {
 };
 
 /**
+ * Create a test user for testing
+ */
+export const createTestUser = async (prisma: PrismaClient, email: string = "test@example.com") => {
+  const bcrypt = require("bcrypt");
+  const passwordHash = await bcrypt.hash("testpassword", 10);
+  
+  return await prisma.user.upsert({
+    where: { email },
+    update: {},
+    create: {
+      email,
+      passwordHash,
+      name: "Test User",
+    },
+  });
+};
+
+/**
  * Initialize test database with required data
  */
 export const initTestDb = async (prisma: PrismaClient) => {
+  // Create a test user first
+  const testUser = await createTestUser(prisma);
+  
   // Ensure Trash collection exists
   const trash = await prisma.collection.findUnique({
     where: { id: "trash" },
   });
   if (!trash) {
     await prisma.collection.create({
-      data: { id: "trash", name: "Trash" },
+      data: { id: "trash", name: "Trash", userId: testUser.id },
     });
   }
+  
+  return testUser;
 };
 
 /**

@@ -7,6 +7,22 @@ export const api = axios.create({
   baseURL: API_URL,
 });
 
+// Re-export axios for type checking
+export { default as axios } from 'axios';
+export const isAxiosError = axios.isAxiosError;
+
+// Export api instance for direct use
+export { api as default };
+
+// JWT Token Management
+const TOKEN_KEY = 'excalidash-access-token';
+const REFRESH_TOKEN_KEY = 'excalidash-refresh-token';
+
+const getAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+};
+
 // CSRF Token Management
 let csrfToken: string | null = null;
 let csrfHeaderName: string = "x-csrf-token";
@@ -50,12 +66,40 @@ export const clearCsrfToken = (): void => {
   csrfToken = null;
 };
 
-// Add request interceptor to include CSRF token
+// Add request interceptor to include JWT and CSRF tokens
 api.interceptors.request.use(
   async (config) => {
-    // Only add CSRF token for state-changing methods
+    // Auth endpoints that require authentication (need JWT token)
+    const authenticatedAuthEndpoints = [
+      '/auth/me',
+      '/auth/profile',
+      '/auth/change-password',
+    ];
+    
+    // Auth endpoints that don't require authentication (login, register, etc.)
+    const publicAuthEndpoints = [
+      '/auth/login',
+      '/auth/register',
+      '/auth/refresh',
+      '/auth/password-reset-request',
+      '/auth/password-reset-confirm',
+    ];
+
+    const isAuthenticatedAuthEndpoint = config.url && authenticatedAuthEndpoints.some(endpoint => config.url?.startsWith(endpoint));
+    const isPublicAuthEndpoint = config.url && publicAuthEndpoints.some(endpoint => config.url?.startsWith(endpoint));
+    const isAuthEndpoint = config.url?.startsWith('/auth/');
+
+    // Add JWT token to all requests except public auth endpoints
+    if (!isPublicAuthEndpoint) {
+      const token = getAuthToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+
+    // Only add CSRF token for state-changing methods (except public auth endpoints)
     const method = config.method?.toUpperCase();
-    if (method && ["POST", "PUT", "DELETE", "PATCH"].includes(method)) {
+    if (method && ["POST", "PUT", "DELETE", "PATCH"].includes(method) && !isPublicAuthEndpoint) {
       await ensureCsrfToken();
       if (csrfToken) {
         config.headers[csrfHeaderName] = csrfToken;
@@ -66,10 +110,47 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Add response interceptor to handle CSRF token errors
+// Add response interceptor to handle auth and CSRF token errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Handle 401 Unauthorized (invalid/expired JWT)
+    if (error.response?.status === 401) {
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+      if (refreshToken && !error.config.url?.includes('/auth/')) {
+        try {
+          const refreshResponse = await axios.post(`${API_URL}/auth/refresh`, {
+            refreshToken,
+          });
+          localStorage.setItem(TOKEN_KEY, refreshResponse.data.accessToken);
+          
+          // Update refresh token if rotation returned a new one
+          if (refreshResponse.data.refreshToken) {
+            localStorage.setItem(REFRESH_TOKEN_KEY, refreshResponse.data.refreshToken);
+          }
+          
+          // Retry original request with new token
+          error.config.headers.Authorization = `Bearer ${refreshResponse.data.accessToken}`;
+          return api(error.config);
+        } catch {
+          // Refresh failed, clear tokens and redirect to login
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(REFRESH_TOKEN_KEY);
+          localStorage.removeItem('excalidash-user');
+          window.location.href = '/login';
+          return Promise.reject(error);
+        }
+      } else {
+        // No refresh token or auth endpoint, redirect to login
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        localStorage.removeItem('excalidash-user');
+        if (!error.config.url?.includes('/auth/')) {
+          window.location.href = '/login';
+        }
+      }
+    }
+
     // If we get a 403 with CSRF error, clear token and retry once
     if (
       error.response?.status === 403 &&
@@ -99,7 +180,14 @@ const coerceTimestamp = (value: string | number | Date): number => {
   return Number.isNaN(parsed) ? Date.now() : parsed;
 };
 
-const deserializeTimestamps = <T extends { createdAt: any; updatedAt: any }>(
+type TimestampValue = string | number | Date;
+
+interface HasTimestamps {
+  createdAt: TimestampValue;
+  updatedAt: TimestampValue;
+}
+
+const deserializeTimestamps = <T extends HasTimestamps>(
   data: T
 ): T & { createdAt: number; updatedAt: number } => ({
   ...data,
@@ -107,11 +195,19 @@ const deserializeTimestamps = <T extends { createdAt: any; updatedAt: any }>(
   updatedAt: coerceTimestamp(data.updatedAt),
 });
 
-const deserializeDrawingSummary = (drawing: any): DrawingSummary =>
-  deserializeTimestamps(drawing);
+const deserializeDrawingSummary = (drawing: unknown): DrawingSummary => {
+  if (typeof drawing !== 'object' || drawing === null) {
+    throw new Error('Invalid drawing data');
+  }
+  return deserializeTimestamps(drawing as HasTimestamps & DrawingSummary);
+};
 
-const deserializeDrawing = (drawing: any): Drawing =>
-  deserializeTimestamps(drawing);
+const deserializeDrawing = (drawing: unknown): Drawing => {
+  if (typeof drawing !== 'object' || drawing === null) {
+    throw new Error('Invalid drawing data');
+  }
+  return deserializeTimestamps(drawing as HasTimestamps & Drawing);
+};
 
 export function getDrawings(
   search?: string,
@@ -129,7 +225,7 @@ export async function getDrawings(
   collectionId?: string | null,
   options?: { includeData?: boolean }
 ) {
-  const params: any = {};
+  const params: Record<string, string> = {};
   if (search) params.search = search;
   if (collectionId !== undefined)
     params.collectionId = collectionId === null ? "null" : collectionId;
@@ -152,8 +248,10 @@ export const createDrawing = async (
   collectionId?: string | null
 ) => {
   const response = await api.post<{ id: string }>("/drawings", {
-    name,
-    collectionId,
+    name: name || "Untitled Drawing",
+    collectionId: collectionId ?? null,
+    elements: [],
+    appState: {},
   });
   return response.data;
 };
@@ -197,12 +295,15 @@ export const deleteCollection = async (id: string) => {
 
 // --- Library ---
 
-export const getLibrary = async () => {
-  const response = await api.get<{ items: any[] }>("/library");
+// Library items are Excalidraw library items - dynamic structure from Excalidraw
+type LibraryItem = Record<string, unknown>;
+
+export const getLibrary = async (): Promise<LibraryItem[]> => {
+  const response = await api.get<{ items: LibraryItem[] }>("/library");
   return response.data.items;
 };
 
-export const updateLibrary = async (items: any[]) => {
-  const response = await api.put<{ items: any[] }>("/library", { items });
+export const updateLibrary = async (items: LibraryItem[]): Promise<LibraryItem[]> => {
+  const response = await api.put<{ items: LibraryItem[] }>("/library", { items });
   return response.data.items;
 };
