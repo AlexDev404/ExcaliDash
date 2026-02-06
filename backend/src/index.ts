@@ -235,10 +235,15 @@ const upload = multer({
     files: 1,
   },
   fileFilter: (req, file, cb) => {
+    // Reject filenames with path traversal characters
+    const safeName = path.basename(file.originalname);
+    if (safeName !== file.originalname || /[/\\]/.test(file.originalname)) {
+      return cb(new Error("Invalid filename"));
+    }
     if (file.fieldname === "db") {
       const isSqliteDb =
-        file.originalname.endsWith(".db") ||
-        file.originalname.endsWith(".sqlite");
+        safeName.endsWith(".db") ||
+        safeName.endsWith(".sqlite");
       if (!isSqliteDb) {
         return cb(new Error("Only .db or .sqlite files are allowed"));
       }
@@ -282,6 +287,7 @@ app.use((req, res, next) => {
     "Permissions-Policy",
     "geolocation=(), microphone=(), camera=()"
   );
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
 
   res.setHeader(
     "Content-Security-Policy",
@@ -291,7 +297,9 @@ app.use((req, res, next) => {
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: blob: https:; " +
     "connect-src 'self' ws: wss:; " +
-    "frame-ancestors 'none';"
+    "frame-ancestors 'none'; " +
+    "base-uri 'self'; " +
+    "form-action 'self';"
   );
 
   next();
@@ -474,6 +482,28 @@ const csrfProtectionMiddleware = (
 
 // Apply CSRF protection to all routes
 app.use(csrfProtectionMiddleware);
+
+// Validate route parameter IDs to prevent injection and ensure expected format
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SAFE_ID_REGEX = /^[a-zA-Z0-9_-]{1,128}$/;
+
+const isValidResourceId = (id: string): boolean => {
+  return UUID_REGEX.test(id) || SAFE_ID_REGEX.test(id);
+};
+
+const validateIdParam = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) => {
+  const { id } = req.params;
+  if (id && !isValidResourceId(id)) {
+    return res.status(400).json({ error: "Invalid resource ID format" });
+  }
+  next();
+};
+
+app.param("id", validateIdParam);
 
 const filesFieldSchema = z
   .union([z.record(z.string(), z.any()), z.null()])
@@ -664,6 +694,12 @@ interface User {
 
 const roomUsers = new Map<string, User[]>();
 
+const isValidSocketId = (id: unknown): id is string =>
+  typeof id === "string" && id.length > 0 && id.length <= 128 && SAFE_ID_REGEX.test(id);
+
+const isValidDrawingId = (id: unknown): id is string =>
+  typeof id === "string" && id.length > 0 && id.length <= 128 && isValidResourceId(id);
+
 io.on("connection", (socket) => {
   socket.on(
     "join-room",
@@ -674,10 +710,16 @@ io.on("connection", (socket) => {
       drawingId: string;
       user: Omit<User, "socketId" | "isActive">;
     }) => {
+      if (!isValidDrawingId(drawingId)) return;
+      if (!user || !isValidSocketId(user.id)) return;
+      const safeName = sanitizeText(typeof user.name === "string" ? user.name : "", 100);
+      const safeInitials = sanitizeText(typeof user.initials === "string" ? user.initials : "", 5);
+      const safeColor = sanitizeText(typeof user.color === "string" ? user.color : "", 30);
+
       const roomId = `drawing_${drawingId}`;
       socket.join(roomId);
 
-      const newUser: User = { ...user, socketId: socket.id, isActive: true };
+      const newUser: User = { id: user.id, name: safeName, initials: safeInitials, color: safeColor, socketId: socket.id, isActive: true };
 
       const currentUsers = roomUsers.get(roomId) || [];
       const filteredUsers = currentUsers.filter((u) => u.id !== user.id);
@@ -689,11 +731,13 @@ io.on("connection", (socket) => {
   );
 
   socket.on("cursor-move", (data) => {
+    if (!data || !isValidDrawingId(data.drawingId)) return;
     const roomId = `drawing_${data.drawingId}`;
     socket.volatile.to(roomId).emit("cursor-move", data);
   });
 
   socket.on("element-update", (data) => {
+    if (!data || !isValidDrawingId(data.drawingId)) return;
     const roomId = `drawing_${data.drawingId}`;
     socket.to(roomId).emit("element-update", data);
   });
@@ -701,6 +745,8 @@ io.on("connection", (socket) => {
   socket.on(
     "user-activity",
     ({ drawingId, isActive }: { drawingId: string; isActive: boolean }) => {
+      if (!isValidDrawingId(drawingId)) return;
+      if (typeof isActive !== "boolean") return;
       const roomId = `drawing_${drawingId}`;
       const users = roomUsers.get(roomId);
       if (users) {
@@ -993,8 +1039,12 @@ app.get("/collections", async (req, res) => {
 app.post("/collections", async (req, res) => {
   try {
     const { name } = req.body;
+    if (typeof name !== "string" || name.trim().length === 0 || name.trim().length > 255) {
+      return res.status(400).json({ error: "Collection name must be a non-empty string (max 255 characters)" });
+    }
+    const sanitizedName = sanitizeText(name.trim(), 255);
     const newCollection = await prisma.collection.create({
-      data: { name },
+      data: { name: sanitizedName },
     });
     res.json(newCollection);
   } catch (error) {
@@ -1006,9 +1056,13 @@ app.put("/collections/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { name } = req.body;
+    if (typeof name !== "string" || name.trim().length === 0 || name.trim().length > 255) {
+      return res.status(400).json({ error: "Collection name must be a non-empty string (max 255 characters)" });
+    }
+    const sanitizedName = sanitizeText(name.trim(), 255);
     const updatedCollection = await prisma.collection.update({
       where: { id },
-      data: { name },
+      data: { name: sanitizedName },
     });
     res.json(updatedCollection);
   } catch (error) {
@@ -1063,14 +1117,23 @@ app.put("/library", async (req, res) => {
       return res.status(400).json({ error: "Items must be an array" });
     }
 
+    if (items.length > 10000) {
+      return res.status(400).json({ error: "Library items limit exceeded (max 10,000)" });
+    }
+
+    const serialized = JSON.stringify(items);
+    if (serialized.length > 50 * 1024 * 1024) {
+      return res.status(400).json({ error: "Library data too large" });
+    }
+
     const library = await prisma.library.upsert({
       where: { id: "default" },
       update: {
-        items: JSON.stringify(items),
+        items: serialized,
       },
       create: {
         id: "default",
-        items: JSON.stringify(items),
+        items: serialized,
       },
     });
 
@@ -1159,12 +1222,12 @@ app.get("/export/json", async (req, res) => {
 
     Object.entries(drawingsByCollection).forEach(
       ([collectionName, collectionDrawings]) => {
-        const folderName = collectionName.replace(/[<>:"/\\|?*]/g, "_");
+        const folderName = collectionName.replace(/[<>:"/\\|?*]/g, "_").replace(/\.\./g, "_");
         collectionDrawings.forEach((drawing, index) => {
           const fileName = `${drawing.name.replace(
             /[<>:"/\\|?*]/g,
             "_"
-          )}.excalidraw`;
+          ).replace(/\.\./g, "_")}.excalidraw`;
           const filePath = `${folderName}/${fileName}`;
 
           archive.append(JSON.stringify(drawing.data, null, 2), {
@@ -1256,12 +1319,27 @@ app.post("/import/sqlite", upload.single("db"), async (req, res) => {
     }
 
     const dbPath = getResolvedDbPath();
-    const backupPath = `${dbPath}.backup`;
+    const backupTimestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const backupPath = `${dbPath}.backup-${backupTimestamp}`;
 
     try {
       try {
         await fsPromises.access(dbPath);
         await fsPromises.copyFile(dbPath, backupPath);
+        console.log(`[import] Created backup: ${backupPath}`);
+
+        // Rotate old backups - keep only the 5 most recent
+        const dbDir = path.dirname(dbPath);
+        const dbName = path.basename(dbPath);
+        const files = await fsPromises.readdir(dbDir);
+        const backups = files
+          .filter((f) => f.startsWith(`${dbName}.backup-`))
+          .sort()
+          .reverse();
+        for (const oldBackup of backups.slice(5)) {
+          await removeFileIfExists(path.join(dbDir, oldBackup));
+          console.log(`[import] Removed old backup: ${oldBackup}`);
+        }
       } catch { }
 
       await moveFile(stagedPath, dbPath);
@@ -1299,6 +1377,17 @@ const ensureTrashCollection = async () => {
     console.error("Failed to ensure Trash collection:", error);
   }
 };
+
+// Global error handler - prevent stack traces from leaking to clients
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: `Upload error: ${err.message}` });
+  }
+  if (err && err.message) {
+    console.error("Unhandled error:", err.message);
+  }
+  res.status(500).json({ error: "Internal server error" });
+});
 
 httpServer.listen(PORT, async () => {
   await initializeUploadDir();
