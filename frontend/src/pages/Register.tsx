@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Logo } from '../components/Logo';
@@ -9,8 +9,19 @@ export const Register: React.FC = () => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, authEnabled, bootstrapRequired, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (authLoading || authEnabled === null) return;
+    if (!authEnabled) {
+      navigate('/', { replace: true });
+      return;
+    }
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [authEnabled, authLoading, isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,16 +51,22 @@ export const Register: React.FC = () => {
         <div className="text-center">
           <Logo className="mx-auto h-12 w-auto" />
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
-            Create your account
+            {bootstrapRequired ? 'Set up admin account' : 'Create your account'}
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Or{' '}
-            <Link
-              to="/login"
-              className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-            >
-              sign in to your existing account
-            </Link>
+            {bootstrapRequired ? (
+              <span>This will enable multi-user access for this ExcaliDash instance.</span>
+            ) : (
+              <>
+                Or{' '}
+                <Link
+                  to="/login"
+                  className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                >
+                  sign in to your existing account
+                </Link>
+              </>
+            )}
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

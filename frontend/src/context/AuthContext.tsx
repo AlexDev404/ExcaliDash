@@ -17,6 +17,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  authEnabled: boolean | null;
+  bootstrapRequired: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
@@ -32,12 +34,36 @@ const USER_KEY = 'excalidash-user';
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authEnabled, setAuthEnabled] = useState<boolean | null>(null);
+  const [bootstrapRequired, setBootstrapRequired] = useState(false);
   const navigate = useNavigate();
 
   // Load user from localStorage on mount
   useEffect(() => {
     const loadUser = async () => {
       try {
+        // Determine auth mode first (single-user mode vs multi-user auth).
+        try {
+          const statusResponse = await axios.get(`${API_URL}/auth/status`);
+          const enabled =
+            typeof statusResponse.data?.authEnabled === "boolean"
+              ? statusResponse.data.authEnabled
+              : typeof statusResponse.data?.enabled === "boolean"
+                ? statusResponse.data.enabled
+                : true;
+          setAuthEnabled(enabled);
+          setBootstrapRequired(Boolean(statusResponse.data?.bootstrapRequired));
+
+          // In single-user mode, do not require login.
+          if (!enabled) {
+            setUser(null);
+            return;
+          }
+        } catch {
+          // If status fails, assume auth is enabled (safer default).
+          setAuthEnabled(true);
+        }
+
         const storedUser = localStorage.getItem(USER_KEY);
         const storedToken = localStorage.getItem(TOKEN_KEY);
 
@@ -101,6 +127,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string) => {
     try {
+      if (authEnabled === false) {
+        throw new Error("Authentication is disabled");
+      }
       const response = await axios.post(`${API_URL}/auth/login`, {
         email,
         password,
@@ -130,6 +159,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const register = async (email: string, password: string, name: string) => {
     try {
+      if (authEnabled === false) {
+        throw new Error("Authentication is disabled");
+      }
       const response = await axios.post(`${API_URL}/auth/register`, {
         email,
         password,
@@ -174,6 +206,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         user,
         loading,
+        authEnabled,
+        bootstrapRequired,
         login,
         register,
         logout,

@@ -45,8 +45,24 @@ const ensureSystemConfig = async () => {
   return prisma.systemConfig.upsert({
     where: { id: DEFAULT_SYSTEM_CONFIG_ID },
     update: {},
-    create: { id: DEFAULT_SYSTEM_CONFIG_ID, registrationEnabled: false },
+    create: {
+      id: DEFAULT_SYSTEM_CONFIG_ID,
+      authEnabled: false,
+      registrationEnabled: false,
+    },
   });
+};
+
+const ensureAuthEnabled = async (res: Response): Promise<boolean> => {
+  const systemConfig = await ensureSystemConfig();
+  if (!systemConfig.authEnabled) {
+    res.status(404).json({
+      error: "Not found",
+      message: "Authentication is disabled",
+    });
+    return false;
+  }
+  return true;
 };
 
 // Rate limiting for auth endpoints (stricter than general rate limiting)
@@ -87,6 +103,10 @@ const registrationToggleSchema = z.object({
 const adminRoleUpdateSchema = z.object({
   identifier: z.string().trim().min(1).max(255),
   role: z.enum(["ADMIN", "USER"]),
+});
+
+const authEnabledToggleSchema = z.object({
+  enabled: z.boolean(),
 });
 
 const findUserByIdentifier = async (identifier: string) => {
@@ -150,6 +170,7 @@ const getRefreshTokenExpiresAt = (): Date =>
  */
 router.post("/register", authRateLimiter, async (req: Request, res: Response) => {
   try {
+    if (!(await ensureAuthEnabled(res))) return;
     const parsed = registerSchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -380,6 +401,7 @@ router.post("/register", authRateLimiter, async (req: Request, res: Response) =>
  */
 router.post("/login", authRateLimiter, async (req: Request, res: Response) => {
   try {
+    if (!(await ensureAuthEnabled(res))) return;
     const parsed = loginSchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -507,6 +529,7 @@ router.post("/login", authRateLimiter, async (req: Request, res: Response) => {
  */
 router.post("/refresh", async (req: Request, res: Response) => {
   try {
+    if (!(await ensureAuthEnabled(res))) return;
     const { refreshToken: oldRefreshToken } = req.body;
 
     if (!oldRefreshToken || typeof oldRefreshToken !== "string") {
@@ -639,6 +662,7 @@ router.post("/refresh", async (req: Request, res: Response) => {
  */
 router.get("/me", requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!(await ensureAuthEnabled(res))) return;
     if (!req.user) {
       return res.status(401).json({
         error: "Unauthorized",
@@ -684,16 +708,31 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
 router.get("/status", optionalAuth, async (req: Request, res: Response) => {
   try {
     const systemConfig = await ensureSystemConfig();
+    if (!systemConfig.authEnabled) {
+      return res.json({
+        enabled: false,
+        authenticated: false,
+        authEnabled: false,
+        registrationEnabled: false,
+        bootstrapRequired: false,
+        user: null,
+      });
+    }
+
     const bootstrapUser = await prisma.user.findUnique({
       where: { id: BOOTSTRAP_USER_ID },
       select: { id: true, isActive: true },
     });
+    const activeUsers = await prisma.user.count({ where: { isActive: true } });
+    const bootstrapRequired =
+      Boolean(bootstrapUser && bootstrapUser.isActive === false) && activeUsers === 0;
 
     res.json({
       enabled: true,
+      authEnabled: true,
       authenticated: Boolean(req.user),
       registrationEnabled: systemConfig.registrationEnabled,
-      bootstrapRequired: Boolean(bootstrapUser && bootstrapUser.isActive === false),
+      bootstrapRequired,
       user: req.user
         ? {
             id: req.user.id,
@@ -715,11 +754,96 @@ router.get("/status", optionalAuth, async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /auth/auth-enabled
+ * Enable/disable authentication mode.
+ *
+ * - Enabling auth is allowed without login (single-user mode).
+ * - Disabling auth requires an authenticated ADMIN.
+ */
+router.post("/auth-enabled", optionalAuth, async (req: Request, res: Response) => {
+  try {
+    const parsed = authEnabledToggleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: "Bad request", message: "Invalid toggle payload" });
+    }
+
+    const systemConfig = await ensureSystemConfig();
+    const current = systemConfig.authEnabled;
+    const next = parsed.data.enabled;
+
+    if (current && !next) {
+      if (!req.user) {
+        return res
+          .status(401)
+          .json({ error: "Unauthorized", message: "User not authenticated" });
+      }
+      if (req.user.role !== "ADMIN") {
+        return res
+          .status(403)
+          .json({ error: "Forbidden", message: "Admin access required" });
+      }
+    }
+
+    // Ensure the bootstrap user exists for the bootstrap registration flow.
+    if (!current && next) {
+      const bootstrap = await prisma.user.findUnique({
+        where: { id: BOOTSTRAP_USER_ID },
+        select: { id: true },
+      });
+      if (!bootstrap) {
+        await prisma.user.create({
+          data: {
+            id: BOOTSTRAP_USER_ID,
+            email: "bootstrap@excalidash.local",
+            username: null,
+            passwordHash: "",
+            name: "Bootstrap Admin",
+            role: "ADMIN",
+            mustResetPassword: true,
+            isActive: false,
+          },
+        });
+      }
+    }
+
+    const updated = await prisma.systemConfig.upsert({
+      where: { id: DEFAULT_SYSTEM_CONFIG_ID },
+      update: { authEnabled: next },
+      create: {
+        id: DEFAULT_SYSTEM_CONFIG_ID,
+        authEnabled: next,
+        registrationEnabled: systemConfig.registrationEnabled,
+      },
+    });
+
+    const bootstrapUser = await prisma.user.findUnique({
+      where: { id: BOOTSTRAP_USER_ID },
+      select: { id: true, isActive: true },
+    });
+    const activeUsers = await prisma.user.count({ where: { isActive: true } });
+    const bootstrapRequired =
+      Boolean(updated.authEnabled && bootstrapUser && bootstrapUser.isActive === false) &&
+      activeUsers === 0;
+
+    res.json({ authEnabled: updated.authEnabled, bootstrapRequired });
+  } catch (error) {
+    console.error("Auth enabled toggle error:", error);
+    res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to update authentication mode",
+    });
+  }
+});
+
+/**
  * POST /auth/registration/toggle
  * Enable/disable registration (admin-only)
  */
 router.post("/registration/toggle", requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!(await ensureAuthEnabled(res))) return;
     if (!req.user) {
       return res.status(401).json({ error: "Unauthorized", message: "User not authenticated" });
     }
@@ -754,6 +878,7 @@ router.post("/registration/toggle", requireAuth, async (req: Request, res: Respo
  */
 router.post("/admins", requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!(await ensureAuthEnabled(res))) return;
     if (!req.user) {
       return res.status(401).json({ error: "Unauthorized", message: "User not authenticated" });
     }
@@ -805,6 +930,7 @@ const passwordResetRequestSchema = z.object({
 });
 
 router.post("/password-reset-request", authRateLimiter, async (req: Request, res: Response) => {
+  if (!(await ensureAuthEnabled(res))) return;
   // Check if password reset feature is enabled
   if (!config.enablePasswordReset) {
     return res.status(404).json({
@@ -901,6 +1027,7 @@ const passwordResetConfirmSchema = z.object({
 });
 
 router.post("/password-reset-confirm", authRateLimiter, async (req: Request, res: Response) => {
+  if (!(await ensureAuthEnabled(res))) return;
   // Check if password reset feature is enabled
   if (!config.enablePasswordReset) {
     return res.status(404).json({
@@ -1010,6 +1137,7 @@ const updateProfileSchema = z.object({
 
 router.put("/profile", requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!(await ensureAuthEnabled(res))) return;
     if (!req.user) {
       return res.status(401).json({
         error: "Unauthorized",
@@ -1074,6 +1202,7 @@ const changePasswordSchema = z.object({
 
 router.post("/change-password", requireAuth, authRateLimiter, async (req: Request, res: Response) => {
   try {
+    if (!(await ensureAuthEnabled(res))) return;
     if (!req.user) {
       return res.status(401).json({
         error: "Unauthorized",

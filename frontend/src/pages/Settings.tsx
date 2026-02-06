@@ -7,15 +7,19 @@ import { Database, FileJson, Upload, Moon, Sun, Info, HardDrive } from 'lucide-r
 import { ConfirmModal } from '../components/ConfirmModal';
 import { importDrawings } from '../utils/importUtils';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 export const Settings: React.FC = () => {
     const [collections, setCollections] = useState<Collection[]>([]);
     const navigate = useNavigate();
     const { theme, toggleTheme } = useTheme();
+    const { authEnabled, user } = useAuth();
 
     const [importConfirmation, setImportConfirmation] = useState<{ isOpen: boolean; file: File | null }>({ isOpen: false, file: null });
     const [importError, setImportError] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
     const [importSuccess, setImportSuccess] = useState(false);
+    const [authToggleLoading, setAuthToggleLoading] = useState(false);
+    const [authToggleError, setAuthToggleError] = useState<string | null>(null);
 
     const appVersion = import.meta.env.VITE_APP_VERSION || 'Unknown version';
     const buildLabel = import.meta.env.VITE_APP_BUILD_LABEL;
@@ -31,6 +35,39 @@ export const Settings: React.FC = () => {
         };
         fetchCollections();
     }, []);
+
+    const toggleAuthEnabled = async () => {
+        if (authEnabled === null) return;
+        setAuthToggleLoading(true);
+        setAuthToggleError(null);
+        try {
+            const next = !authEnabled;
+            const response = await api.api.post<{ authEnabled: boolean; bootstrapRequired?: boolean }>(
+                '/auth/auth-enabled',
+                { enabled: next },
+            );
+
+            if (response.data.authEnabled) {
+                // Auth enabled -> prompt admin bootstrap via register.
+                window.location.href = '/register';
+                return;
+            }
+
+            // Auth disabled -> reload to drop auth gating.
+            window.location.reload();
+        } catch (err: unknown) {
+            let message = 'Failed to update authentication setting';
+            if (api.isAxiosError(err)) {
+                message =
+                    err.response?.data?.message ||
+                    err.response?.data?.error ||
+                    message;
+            }
+            setAuthToggleError(message);
+        } finally {
+            setAuthToggleLoading(false);
+        }
+    };
 
     const handleCreateCollection = async (name: string) => {
         await api.createCollection(name);
@@ -69,7 +106,37 @@ export const Settings: React.FC = () => {
                 Settings
             </h1>
 
+            {authToggleError && (
+                <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-xl">
+                    <p className="text-red-800 dark:text-red-200 font-medium">{authToggleError}</p>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <button
+                    onClick={toggleAuthEnabled}
+                    disabled={authEnabled === null || authToggleLoading || (authEnabled === true && user?.role !== 'ADMIN')}
+                    className="flex flex-col items-center justify-center gap-4 p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] disabled:hover:translate-y-0"
+                >
+                    <div className="w-16 h-16 bg-slate-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-slate-200 dark:border-neutral-700 group-hover:border-slate-300 dark:group-hover:border-neutral-600 transition-colors">
+                        <Info size={32} className="text-slate-700 dark:text-neutral-300" />
+                    </div>
+                    <div className="text-center">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
+                            {authEnabled ? 'Authentication: On' : 'Authentication: Off'}
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-neutral-400 font-medium">
+                            {authEnabled
+                                ? user?.role === 'ADMIN'
+                                    ? (authToggleLoading ? 'Disabling…' : 'Disable multi-user login')
+                                    : 'Only admins can disable'
+                                : authToggleLoading
+                                    ? 'Enabling…'
+                                    : 'Enable multi-user login'}
+                        </p>
+                    </div>
+                </button>
+
                 <button
                     onClick={toggleTheme}
                     className="flex flex-col items-center justify-center gap-4 p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group"

@@ -32,6 +32,7 @@ model User {
 
 model SystemConfig {
   id                  String   @id @default("default")
+  authEnabled         Boolean  @default(false)
   registrationEnabled Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
