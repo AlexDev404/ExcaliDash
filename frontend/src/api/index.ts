@@ -69,13 +69,6 @@ export const clearCsrfToken = (): void => {
 // Add request interceptor to include JWT and CSRF tokens
 api.interceptors.request.use(
   async (config) => {
-    // Auth endpoints that require authentication (need JWT token)
-    const authenticatedAuthEndpoints = [
-      '/auth/me',
-      '/auth/profile',
-      '/auth/change-password',
-    ];
-    
     // Auth endpoints that don't require authentication (login, register, etc.)
     const publicAuthEndpoints = [
       '/auth/login',
@@ -85,9 +78,7 @@ api.interceptors.request.use(
       '/auth/password-reset-confirm',
     ];
 
-    const isAuthenticatedAuthEndpoint = config.url && authenticatedAuthEndpoints.some(endpoint => config.url?.startsWith(endpoint));
     const isPublicAuthEndpoint = config.url && publicAuthEndpoints.some(endpoint => config.url?.startsWith(endpoint));
-    const isAuthEndpoint = config.url?.startsWith('/auth/');
 
     // Add JWT token to all requests except public auth endpoints
     if (!isPublicAuthEndpoint) {

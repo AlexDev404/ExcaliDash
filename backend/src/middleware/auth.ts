@@ -14,8 +14,11 @@ declare global {
     interface Request {
       user?: {
         id: string;
+        username?: string | null;
         email: string;
         name: string;
+        role: string;
+        mustResetPassword?: boolean;
       };
     }
   }
@@ -108,7 +111,15 @@ export const requireAuth = async (
   try {
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, email: true, name: true, isActive: true },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        mustResetPassword: true,
+        isActive: true,
+      },
     });
 
     if (!user || !user.isActive) {
@@ -122,8 +133,11 @@ export const requireAuth = async (
     // Attach user to request
     req.user = {
       id: user.id,
+      username: user.username,
       email: user.email,
       name: user.name,
+      role: user.role,
+      mustResetPassword: user.mustResetPassword,
     };
 
     next();
@@ -160,14 +174,25 @@ export const optionalAuth = async (
   try {
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, email: true, name: true, isActive: true },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        mustResetPassword: true,
+        isActive: true,
+      },
     });
 
     if (user && user.isActive) {
       req.user = {
         id: user.id,
+        username: user.username,
         email: user.email,
         name: user.name,
+        role: user.role,
+        mustResetPassword: user.mustResetPassword,
       };
     }
   } catch (error) {

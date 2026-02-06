@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -6,8 +7,11 @@ const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 interface User {
   id: string;
+  username?: string | null;
   email: string;
   name: string;
+  role?: "ADMIN" | "USER" | string;
+  mustResetPassword?: boolean;
 }
 
 interface AuthContextType {

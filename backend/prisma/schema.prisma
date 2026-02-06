@@ -14,9 +14,12 @@ datasource db {
 
 model User {
   id                  String              @id @default(uuid())
+  username            String?             @unique
   email               String              @unique
   passwordHash        String
   name                String
+  role                String              @default("USER")
+  mustResetPassword   Boolean             @default(false)
   isActive            Boolean             @default(true)
   drawings            Drawing[]
   collections         Collection[]
@@ -25,6 +28,13 @@ model User {
   auditLogs           AuditLog[]
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
+}
+
+model SystemConfig {
+  id                  String   @id @default("default")
+  registrationEnabled Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model Collection {

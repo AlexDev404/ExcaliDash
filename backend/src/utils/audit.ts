@@ -3,7 +3,12 @@
  */
 import { PrismaClient } from "../generated/client";
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient | null = null;
+const getPrisma = () => {
+  if (prisma) return prisma;
+  prisma = new PrismaClient();
+  return prisma;
+};
 
 export interface AuditLogData {
   userId?: string;
@@ -27,7 +32,7 @@ export const logAuditEvent = async (data: AuditLogData): Promise<void> => {
       return; // Feature disabled, silently skip
     }
 
-    await prisma.auditLog.create({
+    await getPrisma().auditLog.create({
       data: {
         userId: data.userId || null,
         action: data.action,
@@ -62,7 +67,7 @@ export const getAuditLogs = async (
       return []; // Feature disabled, return empty array
     }
 
-    const logs = await prisma.auditLog.findMany({
+    const logs = await getPrisma().auditLog.findMany({
       where: userId ? { userId } : undefined,
       orderBy: { createdAt: "desc" },
       take: limit,

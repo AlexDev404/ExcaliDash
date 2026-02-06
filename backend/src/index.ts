@@ -33,37 +33,6 @@ import { logAuditEvent } from "./utils/audit";
 
 const backendRoot = path.resolve(__dirname, "../");
 const defaultDbPath = path.resolve(backendRoot, "prisma/dev.db");
-const resolveDatabaseUrl = (rawUrl?: string) => {
-  if (!rawUrl || rawUrl.trim().length === 0) {
-    return `file:${defaultDbPath}`;
-  }
-
-  if (!rawUrl.startsWith("file:")) {
-    return rawUrl;
-  }
-
-  const filePath = rawUrl.replace(/^file:/, "");
-
-  // Prisma treats relative SQLite paths as relative to the schema directory
-  // (i.e. `backend/prisma/schema.prisma`). Historically this project used
-  // `file:./prisma/dev.db`, which Prisma interprets as `prisma/prisma/dev.db`.
-  // To keep runtime and migrations aligned:
-  // - Prefer resolving relative paths against `backend/prisma`
-  // - But if the path already includes a leading `prisma/`, resolve from repo root
-  const prismaDir = path.resolve(backendRoot, "prisma");
-  const normalizedRelative = filePath.replace(/^\.\/?/, "");
-  const hasLeadingPrismaDir =
-    normalizedRelative === "prisma" ||
-    normalizedRelative.startsWith("prisma/");
-
-  const absolutePath = path.isAbsolute(filePath)
-    ? filePath
-    : path.resolve(hasLeadingPrismaDir ? backendRoot : prismaDir, normalizedRelative);
-
-  return `file:${absolutePath}`;
-};
-
-process.env.DATABASE_URL = resolveDatabaseUrl(process.env.DATABASE_URL);
 console.log("Resolved DATABASE_URL:", process.env.DATABASE_URL);
 
 // Helper to get the resolved database file path

@@ -94,7 +94,7 @@ export const Settings: React.FC = () => {
                 <button
                     onClick={async () => {
                         try {
-                            const response = await api.get('/export', { responseType: 'blob' });
+                            const response = await api.api.get('/export', { responseType: 'blob' });
                             const blob = new Blob([response.data], { type: 'application/json' });
                             const url = window.URL.createObjectURL(blob);
                             const link = document.createElement('a');
@@ -123,7 +123,7 @@ export const Settings: React.FC = () => {
                 <button
                     onClick={async () => {
                         try {
-                            const response = await api.get('/export?format=db', { responseType: 'blob' });
+                            const response = await api.api.get('/export?format=db', { responseType: 'blob' });
                             const blob = new Blob([response.data], { type: 'application/json' });
                             const url = window.URL.createObjectURL(blob);
                             const link = document.createElement('a');
@@ -135,7 +135,7 @@ export const Settings: React.FC = () => {
                             window.URL.revokeObjectURL(url);
                         } catch (error) {
                             console.error('Export failed:', error);
-                            if (error && typeof error === 'object' && 'response' in error && error.response?.status === 403) {
+                            if (api.isAxiosError(error) && error.response?.status === 403) {
                                 alert('Database export is not available. Please use JSON export instead.');
                             } else {
                                 alert('Failed to export data. Please try again.');
@@ -156,7 +156,7 @@ export const Settings: React.FC = () => {
                 <button
                     onClick={async () => {
                         try {
-                            const response = await api.get('/export/json', { responseType: 'blob' });
+                            const response = await api.api.get('/export/json', { responseType: 'blob' });
                             const blob = new Blob([response.data], { type: 'application/zip' });
                             const url = window.URL.createObjectURL(blob);
                             const link = document.createElement('a');

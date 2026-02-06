@@ -4,16 +4,18 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../api';
 import type { Collection } from '../types';
-import { User, Lock, Save, X } from 'lucide-react';
-import { ConfirmModal } from '../components/ConfirmModal';
+import { User, Lock, Save, X, Shield } from 'lucide-react';
 
 export const Profile: React.FC = () => {
     const { user: authUser, logout } = useAuth();
     const navigate = useNavigate();
+    const isAdmin = authUser?.role === 'ADMIN';
     const [collections, setCollections] = useState<Collection[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [registrationEnabled, setRegistrationEnabled] = useState<boolean | null>(null);
+    const [registrationLoading, setRegistrationLoading] = useState(false);
 
     // User info state
     const [name, setName] = useState('');
@@ -36,12 +38,47 @@ export const Profile: React.FC = () => {
                     setName(authUser.name);
                     setEmail(authUser.email);
                 }
+
+                if (isAdmin) {
+                    const statusResponse = await api.api.get<{ registrationEnabled: boolean }>('/auth/status');
+                    setRegistrationEnabled(statusResponse.data.registrationEnabled);
+                } else {
+                    setRegistrationEnabled(null);
+                }
             } catch (err) {
                 console.error('Failed to fetch data:', err);
             }
         };
         fetchData();
-    }, [authUser]);
+    }, [authUser, isAdmin]);
+
+    const handleToggleRegistration = async () => {
+        if (!isAdmin || registrationEnabled === null) return;
+
+        setRegistrationLoading(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            const response = await api.api.post<{ registrationEnabled: boolean }>('/auth/registration/toggle', {
+                enabled: !registrationEnabled,
+            });
+            setRegistrationEnabled(response.data.registrationEnabled);
+            setSuccess(response.data.registrationEnabled ? 'Registration enabled' : 'Registration disabled');
+        } catch (err: unknown) {
+            let message = 'Failed to update registration setting';
+            if (api.isAxiosError(err)) {
+                if (err.response?.data?.message) {
+                    message = err.response.data.message;
+                } else if (err.response?.data?.error) {
+                    message = err.response.data.error;
+                }
+            }
+            setError(message);
+        } finally {
+            setRegistrationLoading(false);
+        }
+    };
 
     const handleSelectCollection = (id: string | null | undefined) => {
         if (id === undefined) navigate('/');
@@ -225,6 +262,42 @@ export const Profile: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Admin Settings */}
+                {isAdmin && (
+                    <div className="bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] p-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-12 h-12 bg-slate-50 dark:bg-neutral-800 rounded-xl flex items-center justify-center border-2 border-slate-200 dark:border-neutral-700">
+                                <Shield size={24} className="text-slate-700 dark:text-neutral-200" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Admin Settings</h2>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4">
+                            <div>
+                                <p className="text-slate-900 dark:text-white font-bold">User registration</p>
+                                <p className="text-sm text-slate-600 dark:text-neutral-400">
+                                    {registrationEnabled === null
+                                        ? 'Loading…'
+                                        : registrationEnabled
+                                        ? 'New users can create accounts.'
+                                        : 'Registration is disabled.'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={handleToggleRegistration}
+                                disabled={registrationLoading || registrationEnabled === null}
+                                className="px-5 py-3 bg-slate-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold rounded-xl border-2 border-black dark:border-neutral-300 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:disabled:hover:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]"
+                            >
+                                {registrationLoading
+                                    ? 'Saving…'
+                                    : registrationEnabled
+                                    ? 'Disable'
+                                    : 'Enable'}
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Password Change Section */}
                 <div className="bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] p-6">

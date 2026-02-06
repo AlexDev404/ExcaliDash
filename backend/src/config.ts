@@ -2,14 +2,16 @@
  * Configuration validation and environment variable management
  */
 import dotenv from "dotenv";
+import crypto from "crypto";
+import path from "path";
 
 dotenv.config();
 
 interface Config {
   port: number;
   nodeEnv: string;
-  databaseUrl: string;
-  frontendUrl: string;
+  databaseUrl?: string;
+  frontendUrl?: string;
   jwtSecret: string;
   jwtAccessExpiresIn: string;
   jwtRefreshExpiresIn: string;
@@ -34,6 +36,65 @@ const getOptionalEnv = (key: string, defaultValue: string): string => {
   return process.env[key] || defaultValue;
 };
 
+const resolveJwtSecret = (nodeEnv: string): string => {
+  const provided = process.env.JWT_SECRET;
+  if (provided && provided.trim().length > 0) {
+    return provided;
+  }
+
+  if (nodeEnv === "production") {
+    throw new Error("Missing required environment variable: JWT_SECRET");
+  }
+
+  const generated = crypto.randomBytes(32).toString("hex");
+  console.warn(
+    "[security] JWT_SECRET is not set (non-production). Using an ephemeral secret; tokens will be invalidated on restart."
+  );
+  return generated;
+};
+
+const parseFrontendUrl = (raw: string | undefined): string | undefined => {
+  if (!raw || raw.trim().length === 0) return undefined;
+  const first = raw.split(",")[0]?.trim();
+  if (!first) return undefined;
+  try {
+    // Validate basic format
+    new URL(/^https?:\/\//i.test(first) ? first : `http://${first}`);
+  } catch {
+    // Don't hard-fail; FRONTEND_URL supports multiple origins in other parts of the app.
+    return first;
+  }
+  return first;
+};
+
+const resolveDatabaseUrl = (rawUrl?: string) => {
+  const backendRoot = path.resolve(__dirname, "../");
+  const defaultDbPath = path.resolve(backendRoot, "prisma/dev.db");
+
+  if (!rawUrl || rawUrl.trim().length === 0) {
+    return `file:${defaultDbPath}`;
+  }
+
+  if (!rawUrl.startsWith("file:")) {
+    return rawUrl;
+  }
+
+  const filePath = rawUrl.replace(/^file:/, "");
+  const prismaDir = path.resolve(backendRoot, "prisma");
+  const normalizedRelative = filePath.replace(/^\.\/?/, "");
+  const hasLeadingPrismaDir =
+    normalizedRelative === "prisma" || normalizedRelative.startsWith("prisma/");
+
+  const absolutePath = path.isAbsolute(filePath)
+    ? filePath
+    : path.resolve(hasLeadingPrismaDir ? backendRoot : prismaDir, normalizedRelative);
+
+  return `file:${absolutePath}`;
+};
+
+// Ensure DATABASE_URL is resolved before any PrismaClient is created.
+process.env.DATABASE_URL = resolveDatabaseUrl(process.env.DATABASE_URL);
+
 const getOptionalBoolean = (key: string, defaultValue: boolean): boolean => {
   const value = process.env[key];
   if (!value) return defaultValue;
@@ -53,9 +114,9 @@ const getRequiredEnvNumber = (key: string, defaultValue: number): number => {
 export const config: Config = {
   port: getRequiredEnvNumber("PORT", 8000),
   nodeEnv: getOptionalEnv("NODE_ENV", "development"),
-  databaseUrl: getRequiredEnv("DATABASE_URL"),
-  frontendUrl: getOptionalEnv("FRONTEND_URL", "http://localhost:6767"),
-  jwtSecret: getRequiredEnv("JWT_SECRET"),
+  databaseUrl: process.env.DATABASE_URL,
+  frontendUrl: parseFrontendUrl(process.env.FRONTEND_URL),
+  jwtSecret: resolveJwtSecret(getOptionalEnv("NODE_ENV", "development")),
   jwtAccessExpiresIn: getOptionalEnv("JWT_ACCESS_EXPIRES_IN", "15m"),
   jwtRefreshExpiresIn: getOptionalEnv("JWT_REFRESH_EXPIRES_IN", "7d"),
   rateLimitMaxRequests: getRequiredEnvNumber("RATE_LIMIT_MAX_REQUESTS", 1000),
@@ -75,13 +136,6 @@ if (config.nodeEnv === "production") {
   if (config.jwtSecret === "your-secret-key-change-in-production") {
     throw new Error("JWT_SECRET must be changed from default value in production");
   }
-}
-
-// Validate frontend URL format
-try {
-  new URL(config.frontendUrl);
-} catch {
-  throw new Error(`Invalid FRONTEND_URL format: ${config.frontendUrl}`);
 }
 
 console.log("Configuration validated successfully");

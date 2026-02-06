@@ -8,7 +8,7 @@ import type { StringValue } from "ms";
 import { z } from "zod";
 import { PrismaClient } from "./generated/client";
 import { config } from "./config";
-import { requireAuth } from "./middleware/auth";
+import { requireAuth, optionalAuth } from "./middleware/auth";
 import { sanitizeText } from "./security";
 import rateLimit from "express-rate-limit";
 import { logAuditEvent } from "./utils/audit";
@@ -38,6 +38,17 @@ const isJwtPayload = (decoded: unknown): decoded is JwtPayload => {
 const router = express.Router();
 const prisma = new PrismaClient();
 
+const BOOTSTRAP_USER_ID = "bootstrap-admin";
+const DEFAULT_SYSTEM_CONFIG_ID = "default";
+
+const ensureSystemConfig = async () => {
+  return prisma.systemConfig.upsert({
+    where: { id: DEFAULT_SYSTEM_CONFIG_ID },
+    update: {},
+    create: { id: DEFAULT_SYSTEM_CONFIG_ID, registrationEnabled: false },
+  });
+};
+
 // Rate limiting for auth endpoints (stricter than general rate limiting)
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -52,15 +63,49 @@ const authRateLimiter = rateLimit({
 
 // Validation schemas
 const registerSchema = z.object({
+  username: z.string().trim().min(3).max(50).optional(),
   email: z.string().email().toLowerCase().trim(),
   password: z.string().min(8).max(100),
   name: z.string().trim().min(1).max(100),
 });
 
-const loginSchema = z.object({
-  email: z.string().email().toLowerCase().trim(),
-  password: z.string(),
+const loginSchema = z
+  .object({
+    identifier: z.string().trim().min(1).max(255).optional(),
+    email: z.string().email().toLowerCase().trim().optional(),
+    username: z.string().trim().min(1).max(255).optional(),
+    password: z.string(),
+  })
+  .refine((data) => Boolean(data.identifier || data.email || data.username), {
+    message: "identifier/email/username is required",
+  });
+
+const registrationToggleSchema = z.object({
+  enabled: z.boolean(),
 });
+
+const adminRoleUpdateSchema = z.object({
+  identifier: z.string().trim().min(1).max(255),
+  role: z.enum(["ADMIN", "USER"]),
+});
+
+const findUserByIdentifier = async (identifier: string) => {
+  const trimmed = identifier.trim();
+  if (trimmed.length === 0) return null;
+
+  const looksLikeEmail = trimmed.includes("@");
+  if (looksLikeEmail) {
+    return prisma.user.findUnique({
+      where: { email: trimmed.toLowerCase() },
+    });
+  }
+
+  return prisma.user.findFirst({
+    where: {
+      OR: [{ username: trimmed }, { email: trimmed.toLowerCase() }],
+    },
+  });
+};
 
 /**
  * Generate JWT tokens (access and refresh)
@@ -105,7 +150,102 @@ router.post("/register", authRateLimiter, async (req: Request, res: Response) =>
       });
     }
 
-    const { email, password, name } = parsed.data;
+    const { email, password, name, username } = parsed.data;
+
+    const systemConfig = await ensureSystemConfig();
+
+    const activeUsers = await prisma.user.count({ where: { isActive: true } });
+    const bootstrapUser = await prisma.user.findUnique({
+      where: { id: BOOTSTRAP_USER_ID },
+      select: { id: true, isActive: true },
+    });
+    const isBootstrapFlow =
+      Boolean(bootstrapUser) &&
+      bootstrapUser?.isActive === false &&
+      activeUsers === 0 &&
+      bootstrapUser.id === BOOTSTRAP_USER_ID;
+
+    // Bootstrap flow: first registration activates the bootstrap admin user
+    // created during migration and retains ownership of migrated data.
+    if (isBootstrapFlow) {
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+      const sanitizedName = sanitizeText(name, 100);
+
+      const user = await prisma.user.update({
+        where: { id: BOOTSTRAP_USER_ID },
+        data: {
+          email,
+          username: username ?? null,
+          passwordHash,
+          name: sanitizedName,
+          role: "ADMIN",
+          mustResetPassword: false,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          mustResetPassword: true,
+        },
+      });
+
+      // Create trash collection if it doesn't exist (shared across all users)
+      const existingTrash = await prisma.collection.findUnique({
+        where: { id: "trash" },
+      });
+      if (!existingTrash) {
+        await prisma.collection.create({
+          data: {
+            id: "trash",
+            name: "Trash",
+            userId: user.id, // Shared, but pick a stable owner
+          },
+        });
+      }
+
+      const { accessToken, refreshToken } = generateTokens(user.id, user.email);
+
+      if (config.enableRefreshTokenRotation) {
+        const expiresAt = new Date();
+        expiresAt.setTime(expiresAt.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        await prisma.refreshToken.create({
+          data: { userId: user.id, token: refreshToken, expiresAt },
+        });
+      }
+
+      if (config.enableAuditLogging) {
+        await logAuditEvent({
+          userId: user.id,
+          action: "bootstrap_admin",
+          ipAddress: req.ip || req.connection.remoteAddress || undefined,
+          userAgent: req.headers["user-agent"] || undefined,
+        });
+      }
+
+      return res.status(201).json({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          mustResetPassword: user.mustResetPassword,
+        },
+        accessToken,
+        refreshToken,
+        registrationEnabled: systemConfig.registrationEnabled,
+        bootstrapped: true,
+      });
+    }
+
+    if (!systemConfig.registrationEnabled) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "User registration is disabled.",
+      });
+    }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -117,6 +257,19 @@ router.post("/register", authRateLimiter, async (req: Request, res: Response) =>
         error: "Conflict",
         message: "User with this email already exists",
       });
+    }
+
+    if (username) {
+      const existingUsername = await prisma.user.findFirst({
+        where: { username },
+        select: { id: true },
+      });
+      if (existingUsername) {
+        return res.status(409).json({
+          error: "Conflict",
+          message: "User with this username already exists",
+        });
+      }
     }
 
     // Hash password
@@ -132,11 +285,14 @@ router.post("/register", authRateLimiter, async (req: Request, res: Response) =>
         email,
         passwordHash,
         name: sanitizedName,
+        username: username ?? null,
       },
       select: {
         id: true,
         email: true,
         name: true,
+        role: true,
+        mustResetPassword: true,
         createdAt: true,
       },
     });
@@ -195,9 +351,12 @@ router.post("/register", authRateLimiter, async (req: Request, res: Response) =>
         id: user.id,
         email: user.email,
         name: user.name,
+        role: user.role,
+        mustResetPassword: user.mustResetPassword,
       },
       accessToken,
       refreshToken,
+      registrationEnabled: systemConfig.registrationEnabled,
     });
   } catch (error) {
     console.error("Registration error:", error);
@@ -223,12 +382,29 @@ router.post("/login", authRateLimiter, async (req: Request, res: Response) => {
       });
     }
 
-    const { email, password } = parsed.data;
+    const identifier =
+      parsed.data.email ||
+      parsed.data.username ||
+      parsed.data.identifier ||
+      "";
+    const { password } = parsed.data;
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email },
+    // Block login until bootstrap is completed (so migrated data remains reachable)
+    const bootstrapUser = await prisma.user.findUnique({
+      where: { id: BOOTSTRAP_USER_ID },
+      select: { id: true, isActive: true },
     });
+    if (bootstrapUser && bootstrapUser.isActive === false) {
+      const activeUsers = await prisma.user.count({ where: { isActive: true } });
+      if (activeUsers === 0) {
+      return res.status(409).json({
+        error: "Bootstrap required",
+        message: "Initial admin account has not been configured yet. Register to bootstrap.",
+      });
+      }
+    }
+
+    const user = await findUserByIdentifier(identifier);
 
     if (!user) {
       // Don't reveal if user exists (prevent user enumeration)
@@ -255,7 +431,7 @@ router.post("/login", authRateLimiter, async (req: Request, res: Response) => {
           action: "login_failed",
           ipAddress: req.ip || req.connection.remoteAddress || undefined,
           userAgent: req.headers["user-agent"] || undefined,
-          details: { email },
+          details: { identifier },
         });
       }
 
@@ -304,6 +480,8 @@ router.post("/login", authRateLimiter, async (req: Request, res: Response) => {
         id: user.id,
         email: user.email,
         name: user.name,
+        role: user.role,
+        mustResetPassword: user.mustResetPassword,
       },
       accessToken,
       refreshToken,
@@ -467,8 +645,11 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
       where: { id: req.user.id },
       select: {
         id: true,
+        username: true,
         email: true,
         name: true,
+        role: true,
+        mustResetPassword: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -487,6 +668,124 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to get user information",
+    });
+  }
+});
+
+/**
+ * GET /auth/status
+ * Lightweight auth + registration status (supports bootstrap UX)
+ */
+router.get("/status", optionalAuth, async (req: Request, res: Response) => {
+  try {
+    const systemConfig = await ensureSystemConfig();
+    const bootstrapUser = await prisma.user.findUnique({
+      where: { id: BOOTSTRAP_USER_ID },
+      select: { id: true, isActive: true },
+    });
+
+    res.json({
+      enabled: true,
+      authenticated: Boolean(req.user),
+      registrationEnabled: systemConfig.registrationEnabled,
+      bootstrapRequired: Boolean(bootstrapUser && bootstrapUser.isActive === false),
+      user: req.user
+        ? {
+            id: req.user.id,
+            username: req.user.username ?? null,
+            email: req.user.email,
+            name: req.user.name,
+            role: req.user.role,
+            mustResetPassword: req.user.mustResetPassword ?? false,
+          }
+        : null,
+    });
+  } catch (error) {
+    console.error("Auth status error:", error);
+    res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to fetch auth status",
+    });
+  }
+});
+
+/**
+ * POST /auth/registration/toggle
+ * Enable/disable registration (admin-only)
+ */
+router.post("/registration/toggle", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: "Unauthorized", message: "User not authenticated" });
+    }
+    if (req.user.role !== "ADMIN") {
+      return res.status(403).json({ error: "Forbidden", message: "Admin access required" });
+    }
+
+    const parsed = registrationToggleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Bad request", message: "Invalid toggle payload" });
+    }
+
+    const updated = await prisma.systemConfig.upsert({
+      where: { id: DEFAULT_SYSTEM_CONFIG_ID },
+      update: { registrationEnabled: parsed.data.enabled },
+      create: { id: DEFAULT_SYSTEM_CONFIG_ID, registrationEnabled: parsed.data.enabled },
+    });
+
+    res.json({ registrationEnabled: updated.registrationEnabled });
+  } catch (error) {
+    console.error("Registration toggle error:", error);
+    res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to update registration setting",
+    });
+  }
+});
+
+/**
+ * POST /auth/admins
+ * Promote/demote a user (admin-only)
+ */
+router.post("/admins", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: "Unauthorized", message: "User not authenticated" });
+    }
+    if (req.user.role !== "ADMIN") {
+      return res.status(403).json({ error: "Forbidden", message: "Admin access required" });
+    }
+
+    const parsed = adminRoleUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Bad request", message: "Invalid admin update payload" });
+    }
+
+    const target = await findUserByIdentifier(parsed.data.identifier);
+    if (!target) {
+      return res.status(404).json({ error: "Not found", message: "User not found" });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: target.id },
+      data: { role: parsed.data.role },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        mustResetPassword: true,
+        isActive: true,
+      },
+    });
+
+    res.json({ user: updated });
+  } catch (error) {
+    console.error("Admin role update error:", error);
+    res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to update user role",
     });
   }
 });
@@ -562,7 +861,8 @@ router.post("/password-reset-request", authRateLimiter, async (req: Request, res
       // For now, we'll return the token in development (remove in production!)
       if (config.nodeEnv === "development") {
         console.log(`[DEV] Password reset token for ${email}: ${resetToken}`);
-        console.log(`[DEV] Reset URL: ${config.frontendUrl}/reset-password?token=${resetToken}`);
+        const baseUrl = config.frontendUrl || "http://localhost:6767";
+        console.log(`[DEV] Reset URL: ${baseUrl}/reset-password?token=${resetToken}`);
       }
     }
 
@@ -643,7 +943,7 @@ router.post("/password-reset-confirm", authRateLimiter, async (req: Request, res
     // Update user password
     await prisma.user.update({
       where: { id: resetToken.userId },
-      data: { passwordHash },
+      data: { passwordHash, mustResetPassword: false },
     });
 
     // Mark reset token as used
@@ -811,7 +1111,7 @@ router.post("/change-password", requireAuth, authRateLimiter, async (req: Reques
     // Update password
     await prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash },
+      data: { passwordHash, mustResetPassword: false },
     });
 
     // Revoke all refresh tokens for this user (force re-login) - if rotation enabled
