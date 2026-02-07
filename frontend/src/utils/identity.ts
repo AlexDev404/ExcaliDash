@@ -93,11 +93,25 @@ const hashString = (input: string): number => {
   return hash >>> 0;
 };
 
+const getCryptoObject = (): Crypto | undefined =>
+  typeof globalThis !== "undefined"
+    ? globalThis.crypto || (globalThis as any).msCrypto
+    : undefined;
+
+const getSecureRandomInt = (maxExclusive: number): number => {
+  if (maxExclusive <= 1) return 0;
+  const cryptoObj = getCryptoObject();
+  if (cryptoObj?.getRandomValues) {
+    const buffer = new Uint32Array(1);
+    cryptoObj.getRandomValues(buffer);
+    return buffer[0] % maxExclusive;
+  }
+  const seed = `${Date.now().toString(16)}:${performance.now().toString(16)}`;
+  return hashString(seed) % maxExclusive;
+};
+
 const generateClientId = (): string => {
-  const cryptoObj: Crypto | undefined =
-    typeof globalThis !== "undefined"
-      ? globalThis.crypto || (globalThis as any).msCrypto
-      : undefined;
+  const cryptoObj = getCryptoObject();
 
   if (cryptoObj?.randomUUID) {
     return cryptoObj.randomUUID();
@@ -115,7 +129,8 @@ const generateClientId = (): string => {
   }
 
   // Final fallback for very old browsers; uniqueness window-scoped only.
-  return `id-${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
+  const entropy = `${Date.now().toString(16)}-${performance.now().toString(16)}-${getSecureRandomInt(1_000_000_000).toString(16)}`;
+  return `id-${hashString(entropy).toString(16)}-${hashString(`${entropy}:2`).toString(16)}`;
 };
 
 export const getOrCreateBrowserFingerprint = (): string => {
@@ -146,9 +161,8 @@ export const getUserIdentity = (): UserIdentity => {
   }
 
   const deviceId = getOrCreateBrowserFingerprint();
-  const randomTransformer =
-    TRANSFORMERS[Math.floor(Math.random() * TRANSFORMERS.length)];
-  const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+  const randomTransformer = TRANSFORMERS[getSecureRandomInt(TRANSFORMERS.length)];
+  const randomColor = COLORS[getSecureRandomInt(COLORS.length)];
 
   const identity: UserIdentity = {
     id: deviceId,

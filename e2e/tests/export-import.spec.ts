@@ -11,12 +11,10 @@ import {
 /**
  * E2E Tests for Export/Import functionality
  * 
- * Tests the export/import feature mentioned in README:
- * - Export drawings as JSON
- * - Export database backup (SQLite)
- * - Import .excalidraw files
- * - Import JSON files
- * - Import database backup
+ * Tests the export/import feature:
+ * - Export/Import `.excalidash` backups
+ * - Import `.excalidraw` and JSON files
+ * - Legacy SQLite verification/import endpoints
  */
 
 test.describe("Export Functionality", () => {
@@ -43,86 +41,52 @@ test.describe("Export Functionality", () => {
     createdCollectionIds = [];
   });
 
-  test("should export database as SQLite via Settings page", async ({ page, request }) => {
+  test("should show backup export controls on Settings page", async ({ page, request }) => {
     // Create a drawing to ensure there's data to export
-    const drawing = await createDrawing(request, { name: `Export_SQLite_${Date.now()}` });
+    const drawing = await createDrawing(request, { name: `Export_Backup_${Date.now()}` });
     createdDrawingIds.push(drawing.id);
 
     // Navigate to Settings
     await page.goto("/settings");
     await page.waitForLoadState("networkidle");
 
-    // Find and verify the export button exists
-    const exportSqliteButton = page.getByRole("button", { name: /Export Data \(.sqlite\)/i });
-    await expect(exportSqliteButton).toBeVisible();
-
-    // Verify the button links to the correct endpoint
-    // We can't easily test the actual download, but we can verify the UI
-    const exportDbButton = page.getByRole("button", { name: /Export Data \(.db\)/i });
-    await expect(exportDbButton).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Export Backup" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Export$/ })).toBeVisible();
+    const downloadNameSelect = page.getByRole("combobox", { name: "Download name" });
+    await expect(downloadNameSelect).toBeVisible();
+    await expect(downloadNameSelect.locator('option[value="excalidash"]')).toHaveText(".excalidash");
+    await expect(downloadNameSelect.locator('option[value="excalidash.zip"]')).toHaveText(".excalidash.zip");
   });
 
-  test("should export database as JSON via Settings page", async ({ page, request }) => {
-    // Create test data
-    const drawing = await createDrawing(request, { name: `Export_JSON_${Date.now()}` });
-    createdDrawingIds.push(drawing.id);
-
-    await page.goto("/settings");
-    await page.waitForLoadState("networkidle");
-
-    // Find the JSON export button
-    const exportJsonButton = page.getByRole("button", { name: /Export Data \(JSON\)/i });
-    await expect(exportJsonButton).toBeVisible();
-  });
-
-  test("should have export endpoints accessible via API", async ({ request }) => {
+  test("should export .excalidash via API", async ({ request }) => {
     // Create test data
     const drawing = await createDrawing(request, { name: `Export_API_${Date.now()}` });
     createdDrawingIds.push(drawing.id);
 
-    // Test JSON/ZIP export endpoint - it returns a ZIP file with .excalidraw files
-    const zipResponse = await request.get(`${API_URL}/export/json`);
-    expect(zipResponse.ok()).toBe(true);
+    const response = await request.get(`${API_URL}/export/excalidash`);
+    expect(response.ok()).toBe(true);
 
-    // Check it's a ZIP file
-    const contentType = zipResponse.headers()["content-type"];
+    const contentType = response.headers()["content-type"];
     expect(contentType).toMatch(/application\/zip/);
 
-    // Check content-disposition header
-    const contentDisposition = zipResponse.headers()["content-disposition"];
+    const contentDisposition = response.headers()["content-disposition"];
     expect(contentDisposition).toContain("attachment");
-    expect(contentDisposition).toMatch(/excalidraw-drawings.*\.zip/);
+    expect(contentDisposition).toMatch(/excalidash-backup.*\.excalidash/);
   });
 
-  test("should download SQLite export via API", async ({ request }) => {
-    const drawing = await createDrawing(request, { name: `SQLite_Export_${Date.now()}` });
+  test("should export .excalidash.zip via API", async ({ request }) => {
+    const drawing = await createDrawing(request, { name: `Export_Zip_${Date.now()}` });
     createdDrawingIds.push(drawing.id);
 
-    // Test SQLite export endpoint
-    const sqliteResponse = await request.get(`${API_URL}/export`);
-    expect(sqliteResponse.ok()).toBe(true);
+    const response = await request.get(`${API_URL}/export/excalidash?ext=zip`);
+    expect(response.ok()).toBe(true);
 
-    // Check content-type header indicates a file download
-    const contentType = sqliteResponse.headers()["content-type"];
-    expect(contentType).toMatch(/application\/octet-stream|application\/x-sqlite3/);
+    const contentType = response.headers()["content-type"];
+    expect(contentType).toMatch(/application\/zip/);
 
-    // Check content-disposition header
-    const contentDisposition = sqliteResponse.headers()["content-disposition"];
+    const contentDisposition = response.headers()["content-disposition"];
     expect(contentDisposition).toContain("attachment");
-    expect(contentDisposition).toMatch(/excalidash-db.*\.sqlite/);
-  });
-
-  test("should download .db export via API", async ({ request }) => {
-    const drawing = await createDrawing(request, { name: `DB_Export_${Date.now()}` });
-    createdDrawingIds.push(drawing.id);
-
-    // Test .db export endpoint
-    const dbResponse = await request.get(`${API_URL}/export?format=db`);
-    expect(dbResponse.ok()).toBe(true);
-
-    const contentDisposition = dbResponse.headers()["content-disposition"];
-    expect(contentDisposition).toContain("attachment");
-    expect(contentDisposition).toMatch(/\.db/);
+    expect(contentDisposition).toMatch(/excalidash-backup.*\.excalidash\.zip/);
   });
 });
 
@@ -150,13 +114,12 @@ test.describe.serial("Import Functionality", () => {
     createdDrawingIds = [];
   });
 
-  test("should show Import Data button on Settings page", async ({ page }) => {
+  test("should show Import Backup button on Settings page", async ({ page }) => {
     await page.goto("/settings");
     await page.waitForLoadState("networkidle");
 
-    // Find the import button
-    const importButton = page.getByRole("button", { name: /Import Data/i });
-    await expect(importButton).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Import Backup" })).toBeVisible();
+    await expect(page.locator("#settings-import-backup")).toBeAttached();
   });
 
   test("should import .excalidraw file from Dashboard", async ({ page }) => {
@@ -381,7 +344,7 @@ test.describe("Database Import Verification", () => {
   test("should verify SQLite import endpoint exists", async ({ request }) => {
     // Test that the verification endpoint responds
     // We don't actually import a database as that would affect the test environment
-    const response = await request.post(`${API_URL}/import/sqlite/verify`, {
+    const response = await request.post(`${API_URL}/import/sqlite/legacy/verify`, {
       headers: await getCsrfHeaders(request),
       // Send empty form data to test endpoint exists
       multipart: {

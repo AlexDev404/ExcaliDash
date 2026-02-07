@@ -1,6 +1,3 @@
-/**
- * Authentication middleware for protecting routes
- */
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config";
@@ -102,9 +99,6 @@ interface JwtPayload {
   impersonatorId?: string;
 }
 
-/**
- * Type guard to check if decoded JWT is our expected payload structure
- */
 const isJwtPayload = (decoded: unknown): decoded is JwtPayload => {
   if (typeof decoded !== "object" || decoded === null) {
     return false;
@@ -120,9 +114,6 @@ const isJwtPayload = (decoded: unknown): decoded is JwtPayload => {
   );
 };
 
-/**
- * Extract JWT token from Authorization header
- */
 const extractToken = (req: Request): string | null => {
   const authHeader = req.headers.authorization;
   if (!authHeader || typeof authHeader !== "string") return null;
@@ -135,9 +126,6 @@ const extractToken = (req: Request): string | null => {
   return parts[1];
 };
 
-/**
- * Verify and decode JWT token
- */
 const verifyToken = (token: string): JwtPayload | null => {
   try {
     const decoded = jwt.verify(token, config.jwtSecret);
@@ -170,10 +158,6 @@ const isAllowedWhileMustResetPassword = (req: Request): boolean => {
   return false;
 };
 
-/**
- * Require authentication middleware
- * Protects routes that require a valid JWT token
- */
 export const requireAuth = async (
   req: Request,
   res: Response,
@@ -276,10 +260,6 @@ export const requireAuth = async (
   }
 };
 
-/**
- * Optional authentication middleware
- * Attaches user to request if token is present, but doesn't require it
- */
 export const optionalAuth = async (
   req: Request,
   res: Response,

@@ -397,14 +397,15 @@ test.describe("Drawing Deletion", () => {
   });
 
   test("should duplicate drawing", async ({ page, request }) => {
-    const drawing = await createDrawing(request, { name: `Duplicate_Test_${Date.now()}` });
+    const baseName = `Duplicate_Test_${Date.now()}`;
+    const drawing = await createDrawing(request, { name: baseName });
     createdDrawingIds.push(drawing.id);
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
     // Search for the drawing
-    await page.getByPlaceholder("Search drawings...").fill(drawing.name);
+    await page.getByPlaceholder("Search drawings...").fill(baseName);
     await page.waitForTimeout(500);
 
     // Select the drawing
@@ -417,23 +418,17 @@ test.describe("Drawing Deletion", () => {
     // Click duplicate button
     await page.getByTitle("Duplicate Selected").click();
 
-    // Wait for the duplicate to be created
-    await page.waitForTimeout(1000);
+    await expect.poll(async () => {
+      const allDrawings = await listDrawings(request, { search: baseName });
+      return allDrawings.length;
+    }, { timeout: 10000 }).toBe(2);
 
-    // Clear search to see all drawings
-    await page.getByPlaceholder("Search drawings...").fill("");
-    await page.waitForTimeout(500);
-
-    // Search again to find both
-    await page.getByPlaceholder("Search drawings...").fill("Duplicate_Test");
-    await page.waitForTimeout(500);
-
-    // There should be two cards now
-    const cards = page.locator("[id^='drawing-card-']");
-    await expect(cards).toHaveCount(2);
+    await page.getByPlaceholder("Search drawings...").fill(baseName);
+    await page.waitForTimeout(700);
+    await expect(page.locator("[id^='drawing-card-']")).toHaveCount(2);
 
     // Get the duplicate ID for cleanup
-    const allDrawings = await listDrawings(request, { search: "Duplicate_Test" });
+    const allDrawings = await listDrawings(request, { search: baseName });
     for (const d of allDrawings) {
       if (!createdDrawingIds.includes(d.id)) {
         createdDrawingIds.push(d.id);
