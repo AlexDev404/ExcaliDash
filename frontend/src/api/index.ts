@@ -17,6 +17,14 @@ export { api as default };
 // JWT Token Management
 const TOKEN_KEY = 'excalidash-access-token';
 const REFRESH_TOKEN_KEY = 'excalidash-refresh-token';
+const USER_KEY = 'excalidash-user';
+
+type RetriableRequestConfig = {
+  _retry?: boolean;
+  _csrfRetry?: boolean;
+  url?: string;
+  headers?: Record<string, string>;
+};
 
 const getAuthToken = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -28,9 +36,6 @@ let csrfToken: string | null = null;
 let csrfHeaderName: string = "x-csrf-token";
 let csrfTokenPromise: Promise<void> | null = null;
 
-/**
- * Fetch a fresh CSRF token from the server
- */
 export const fetchCsrfToken = async (): Promise<void> => {
   try {
     const response = await axios.get<{ token: string; header: string }>(
@@ -44,9 +49,6 @@ export const fetchCsrfToken = async (): Promise<void> => {
   }
 };
 
-/**
- * Ensure we have a valid CSRF token, fetching one if needed
- */
 const ensureCsrfToken = async (): Promise<void> => {
   if (csrfToken) return;
 
@@ -59,11 +61,53 @@ const ensureCsrfToken = async (): Promise<void> => {
   await csrfTokenPromise;
 };
 
-/**
- * Clear the cached CSRF token (useful for handling 403 errors)
- */
 export const clearCsrfToken = (): void => {
   csrfToken = null;
+};
+
+const clearStoredAuth = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+};
+
+const redirectToLogin = () => {
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+};
+
+let refreshPromise: Promise<string> | null = null;
+
+const refreshAccessToken = async (): Promise<string> => {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+      if (!refreshToken) {
+        throw new Error("Missing refresh token");
+      }
+
+      const refreshResponse = await axios.post(`${API_URL}/auth/refresh`, {
+        refreshToken,
+      });
+
+      const nextAccessToken = String(refreshResponse.data.accessToken || "");
+      if (!nextAccessToken) {
+        throw new Error("Missing access token in refresh response");
+      }
+
+      localStorage.setItem(TOKEN_KEY, nextAccessToken);
+      if (refreshResponse.data.refreshToken) {
+        localStorage.setItem(REFRESH_TOKEN_KEY, refreshResponse.data.refreshToken);
+      }
+
+      return nextAccessToken;
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
 };
 
 // Add request interceptor to include JWT and CSRF tokens
@@ -125,38 +169,28 @@ api.interceptors.response.use(
 
     // Handle 401 Unauthorized (invalid/expired JWT)
     if (error.response?.status === 401) {
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-      if (refreshToken && !error.config.url?.includes('/auth/')) {
+      const originalRequest = (error.config || {}) as RetriableRequestConfig;
+      const url = String(originalRequest.url || "");
+      const isAuthRoute = url.includes('/auth/');
+      const hasRefreshToken = Boolean(localStorage.getItem(REFRESH_TOKEN_KEY));
+
+      if (!isAuthRoute && hasRefreshToken && !originalRequest._retry) {
         try {
-          const refreshResponse = await axios.post(`${API_URL}/auth/refresh`, {
-            refreshToken,
-          });
-          localStorage.setItem(TOKEN_KEY, refreshResponse.data.accessToken);
-          
-          // Update refresh token if rotation returned a new one
-          if (refreshResponse.data.refreshToken) {
-            localStorage.setItem(REFRESH_TOKEN_KEY, refreshResponse.data.refreshToken);
-          }
-          
-          // Retry original request with new token
-          error.config.headers.Authorization = `Bearer ${refreshResponse.data.accessToken}`;
-          return api(error.config);
+          originalRequest._retry = true;
+          const nextAccessToken = await refreshAccessToken();
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${nextAccessToken}`;
+          return api(originalRequest as any);
         } catch {
-          // Refresh failed, clear tokens and redirect to login
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem(REFRESH_TOKEN_KEY);
-          localStorage.removeItem('excalidash-user');
-          window.location.href = '/login';
+          clearStoredAuth();
+          redirectToLogin();
           return Promise.reject(error);
         }
-      } else {
-        // No refresh token or auth endpoint, redirect to login
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(REFRESH_TOKEN_KEY);
-        localStorage.removeItem('excalidash-user');
-        if (!error.config.url?.includes('/auth/')) {
-          window.location.href = '/login';
-        }
+      }
+
+      if (!isAuthRoute) {
+        clearStoredAuth();
+        redirectToLogin();
       }
     }
 
@@ -168,14 +202,15 @@ api.interceptors.response.use(
       clearCsrfToken();
 
       // Retry the request once with a fresh token
-      const originalRequest = error.config;
+      const originalRequest = (error.config || {}) as RetriableRequestConfig;
       if (!originalRequest._csrfRetry) {
         originalRequest._csrfRetry = true;
         await fetchCsrfToken();
         if (csrfToken) {
+          originalRequest.headers = originalRequest.headers || {};
           originalRequest.headers[csrfHeaderName] = csrfToken;
         }
-        return api(originalRequest);
+        return api(originalRequest as any);
       }
     }
     return Promise.reject(error);
@@ -225,22 +260,42 @@ export interface PaginatedDrawings<T> {
   offset?: number;
 }
 
+export type DrawingSortField = "name" | "createdAt" | "updatedAt";
+export type SortDirection = "asc" | "desc";
+
 export function getDrawings(
   search?: string,
   collectionId?: string | null,
-  options?: { limit?: number; offset?: number }
+  options?: {
+    limit?: number;
+    offset?: number;
+    sortField?: DrawingSortField;
+    sortDirection?: SortDirection;
+  }
 ): Promise<PaginatedDrawings<DrawingSummary>>;
 
 export function getDrawings(
   search: string | undefined,
   collectionId: string | null | undefined,
-  options: { includeData: true; limit?: number; offset?: number }
+  options: {
+    includeData: true;
+    limit?: number;
+    offset?: number;
+    sortField?: DrawingSortField;
+    sortDirection?: SortDirection;
+  }
 ): Promise<PaginatedDrawings<Drawing>>;
 
 export async function getDrawings(
   search?: string,
   collectionId?: string | null,
-  options?: { includeData?: boolean; limit?: number; offset?: number }
+  options?: {
+    includeData?: boolean;
+    limit?: number;
+    offset?: number;
+    sortField?: DrawingSortField;
+    sortDirection?: SortDirection;
+  }
 ) {
   const params: Record<string, string | number> = {};
   if (search) params.search = search;
@@ -248,6 +303,8 @@ export async function getDrawings(
     params.collectionId = collectionId === null ? "null" : collectionId;
   if (options?.limit !== undefined) params.limit = options.limit;
   if (options?.offset !== undefined) params.offset = options.offset;
+  if (options?.sortField) params.sortField = options.sortField;
+  if (options?.sortDirection) params.sortDirection = options.sortDirection;
 
   if (options?.includeData) {
     params.includeData = "true";

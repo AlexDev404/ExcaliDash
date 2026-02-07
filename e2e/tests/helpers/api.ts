@@ -248,7 +248,11 @@ export async function listDrawings(
     `${API_URL}/drawings${query ? `?${query}` : ""}`
   );
   expect(response.ok()).toBe(true);
-  return (await response.json()) as DrawingRecord[];
+  const payload = (await response.json()) as
+    | DrawingRecord[]
+    | { drawings?: DrawingRecord[] };
+  if (Array.isArray(payload)) return payload;
+  return Array.isArray(payload.drawings) ? payload.drawings : [];
 }
 
 export async function createCollection(

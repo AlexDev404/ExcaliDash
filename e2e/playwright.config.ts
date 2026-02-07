@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // Centralized test environment URLs
-const FRONTEND_PORT = 5173;
+const FRONTEND_PORT = 6767;
 const BACKEND_PORT = 8000;
 const FRONTEND_URL = process.env.BASE_URL || `http://localhost:${FRONTEND_PORT}`;
 const BACKEND_URL = process.env.API_URL || `http://localhost:${BACKEND_PORT}`;
@@ -10,7 +10,7 @@ const BACKEND_URL = process.env.API_URL || `http://localhost:${BACKEND_PORT}`;
  * Playwright configuration for E2E browser testing
  * 
  * Environment variables:
- * - BASE_URL: Frontend URL (default: http://localhost:5173)
+ * - BASE_URL: Frontend URL (default: http://localhost:6767)
  * - API_URL: Backend API URL (default: http://localhost:8000)
  * - HEADED: Run in headed mode (default: false)
  * - NO_SERVER: Skip starting servers (default: false)

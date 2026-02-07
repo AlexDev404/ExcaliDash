@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   createDrawing,
   deleteDrawing,
@@ -120,7 +120,7 @@ test.describe("Search Drawings", () => {
     const searchInput = page.getByPlaceholder("Search drawings...");
 
     // Use keyboard shortcut (Cmd+K on Mac, Ctrl+K on Windows/Linux)
-    await page.keyboard.press("Meta+k");
+    await page.keyboard.press("ControlOrMeta+k");
 
     // Search input should be focused
     await expect(searchInput).toBeFocused();
@@ -129,6 +129,18 @@ test.describe("Search Drawings", () => {
 
 test.describe("Sort Drawings", () => {
   let createdDrawingIds: string[] = [];
+
+  const getSortFieldButton = (page: Page) =>
+    page.getByRole("button", { name: /^(Name|Date Created|Date Modified)$/ }).first();
+
+  const chooseSortField = async (
+    page: Page,
+    label: "Name" | "Date Created" | "Date Modified"
+  ) => {
+    await getSortFieldButton(page).click();
+    await page.getByRole("button", { name: label }).last().click();
+    await expect(getSortFieldButton(page)).toHaveText(new RegExp(label));
+  };
 
   test.afterEach(async ({ request }) => {
     for (const id of createdDrawingIds) {
@@ -160,17 +172,14 @@ test.describe("Sort Drawings", () => {
     await searchInput.fill(prefix);
     await page.waitForTimeout(500);
 
-    // Click Name sort button
-    const nameSortButton = page.getByRole("button", { name: "Name" });
-    await nameSortButton.click();
-
-    // Get the order of cards
-    const cards = page.locator("[id^='drawing-card-']");
-    await expect(cards).toHaveCount(3);
+    await chooseSortField(page, "Name");
 
     // Verify order is alphabetical (Alpha, Bravo, Charlie)
-    const firstCard = cards.first();
-    await expect(firstCard).toHaveId(`drawing-card-${drawingA.id}`);
+    const cards = page.locator("[id^='drawing-card-']");
+    await expect(cards).toHaveCount(3);
+    await expect(cards.nth(0)).toHaveId(`drawing-card-${drawingA.id}`);
+    await expect(cards.nth(1)).toHaveId(`drawing-card-${drawingB.id}`);
+    await expect(cards.nth(2)).toHaveId(`drawing-card-${drawingC.id}`);
   });
 
   test("should toggle sort direction on repeated clicks", async ({ page, request }) => {
@@ -189,23 +198,18 @@ test.describe("Sort Drawings", () => {
     await searchInput.fill(prefix);
     await page.waitForTimeout(500);
 
-    const nameSortButton = page.getByRole("button", { name: "Name" });
-
-    // First click - ascending (A first)
-    await nameSortButton.click();
-    await page.waitForTimeout(200);
+    await chooseSortField(page, "Name");
 
     let cards = page.locator("[id^='drawing-card-']");
-    let firstCard = cards.first();
-    await expect(firstCard).toHaveId(`drawing-card-${drawingA.id}`);
+    await expect(cards).toHaveCount(2);
+    await expect(cards.first()).toHaveId(`drawing-card-${drawingA.id}`);
 
-    // Second click - descending (Z first)
-    await nameSortButton.click();
-    await page.waitForTimeout(200);
+    // Toggle direction (descending -> Z first)
+    const directionToggle = page.getByTitle(/Sort (Ascending|Descending)/);
+    await directionToggle.click();
 
     cards = page.locator("[id^='drawing-card-']");
-    firstCard = cards.first();
-    await expect(firstCard).toHaveId(`drawing-card-${drawingZ.id}`);
+    await expect(cards.first()).toHaveId(`drawing-card-${drawingZ.id}`);
   });
 
   test("should sort by date created", async ({ page, request }) => {
@@ -227,15 +231,12 @@ test.describe("Sort Drawings", () => {
     await searchInput.fill(prefix);
     await page.waitForTimeout(500);
 
-    // Click Date Created sort button
-    const dateCreatedButton = page.getByRole("button", { name: "Date Created" });
-    await dateCreatedButton.click();
-    await page.waitForTimeout(200);
+    await chooseSortField(page, "Date Created");
 
     // Default should be descending (newest first)
     const cards = page.locator("[id^='drawing-card-']");
-    const firstCard = cards.first();
-    await expect(firstCard).toHaveId(`drawing-card-${drawing2.id}`);
+    await expect(cards).toHaveCount(2);
+    await expect(cards.first()).toHaveId(`drawing-card-${drawing2.id}`);
   });
 
   test("should sort by date modified", async ({ page, request }) => {
@@ -254,11 +255,8 @@ test.describe("Sort Drawings", () => {
     await searchInput.fill(prefix);
     await page.waitForTimeout(500);
 
-    // Click Date Modified sort button
-    const dateModifiedButton = page.getByRole("button", { name: "Date Modified" });
-    await dateModifiedButton.click();
-
-    // Verify the button shows active state
-    await expect(dateModifiedButton).toHaveClass(/bg-indigo-100|bg-neutral-800/);
+    await chooseSortField(page, "Date Modified");
+    await expect(getSortFieldButton(page)).toHaveText(/Date Modified/);
+    await expect(page.getByTitle(/Sort (Ascending|Descending)/)).toBeVisible();
   });
 });

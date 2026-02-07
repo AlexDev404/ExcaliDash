@@ -552,21 +552,6 @@ const CSRF_TOKEN_FUTURE_SKEW_MS = 5 * 60 * 1000; // 5 minutes clock skew toleran
 const CSRF_NONCE_BYTES = 16;
 const CSRF_TOKEN_MAX_LENGTH = 2048; // sanity limit against abuse
 
-/**
- * IMPORTANT (Horizontal Scaling / K8s)
- * -----------------------------------
- * CSRF tokens must validate across multiple stateless instances.
- *
- * The prior in-memory Map-based token store breaks under horizontal scaling
- * because each pod has its own memory. This implementation is stateless:
- *
- * - Token payload: { ts, nonce }
- * - Signature: HMAC_SHA256(secret, `${clientId}|${ts}|${nonce}`)
- *
- * As long as all pods share the same `CSRF_SECRET`, any pod can validate
- * any token without shared state (works on Kubernetes).
- */
-
 let cachedCsrfSecret: Buffer | null = null;
 const getCsrfSecret = (): Buffer => {
   if (cachedCsrfSecret) return cachedCsrfSecret;
@@ -577,9 +562,7 @@ const getCsrfSecret = (): Buffer => {
     return cachedCsrfSecret;
   }
 
-  // If not configured, generate an ephemeral secret for this process.
-  // This keeps single-instance deployments working out of the box, but:
-  // - Horizontal scaling will BREAK unless CSRF_SECRET is set and shared.
+  // Fallback for local/single-instance setups.
   cachedCsrfSecret = crypto.randomBytes(32);
   const envLabel = process.env.NODE_ENV ? ` (${process.env.NODE_ENV})` : "";
   console.warn(
@@ -609,9 +592,7 @@ const base64UrlDecode = (input: string): Buffer => {
 };
 
 type CsrfTokenPayload = {
-  /** Issued-at timestamp (ms since epoch) */
   ts: number;
-  /** Random nonce (base64url) */
   nonce: string;
 };
 
@@ -621,10 +602,6 @@ const signCsrfToken = (clientId: string, payload: CsrfTokenPayload): Buffer => {
   return crypto.createHmac("sha256", secret).update(data, "utf8").digest();
 };
 
-/**
- * Create a new CSRF token for a client
- * Returns the token to be sent to the client
- */
 export const createCsrfToken = (clientId: string): string => {
   const payload: CsrfTokenPayload = {
     ts: Date.now(),
@@ -638,10 +615,6 @@ export const createCsrfToken = (clientId: string): string => {
   return `${payloadB64}.${sigB64}`;
 };
 
-/**
- * Validate a CSRF token for a client
- * Uses timing-safe comparison to prevent timing attacks
- */
 export const validateCsrfToken = (clientId: string, token: string): boolean => {
   if (!token || typeof token !== "string") {
     return false;
@@ -688,9 +661,6 @@ export const validateCsrfToken = (clientId: string, token: string): boolean => {
   }
 };
 
-/**
- * Revoke a CSRF token (e.g., on logout or token refresh)
- */
 export const revokeCsrfToken = (clientId: string): void => {
   // Stateless CSRF tokens cannot be selectively revoked without shared state.
   // If revocation is required, implement token blacklisting in a shared store
