@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { Sidebar } from './Sidebar';
+import { Logo } from './Logo';
 import { UploadStatus } from './UploadStatus';
 import type { Collection } from '../types';
 import clsx from 'clsx';
@@ -89,16 +90,22 @@ export const Layout: React.FC<LayoutProps> = ({
       {isMobile ? (
         <div className="relative h-full min-w-0">
           <main className="h-full min-w-0 bg-white/40 dark:bg-neutral-900/40 backdrop-blur-sm rounded-2xl border border-white/50 dark:border-neutral-800/50 shadow-sm transition-colors duration-200 overflow-hidden flex flex-col">
-            <div className="px-3 pt-3 flex-shrink-0">
+            <div className="h-16 flex-shrink-0 flex items-center px-4 border-b border-black/5 dark:border-white/5 bg-white/50 dark:bg-neutral-900/50 backdrop-blur-md">
               <button
                 type="button"
                 onClick={() => setIsSidebarOpen(v => !v)}
-                className="inline-flex items-center justify-center h-11 w-11 rounded-xl border-2 border-black dark:border-neutral-700 bg-white/90 dark:bg-neutral-900/90 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] backdrop-blur-sm text-slate-900 dark:text-neutral-200 hover:-translate-y-0.5 transition-all"
+                className="inline-flex items-center justify-center h-11 w-11 rounded-xl border-2 border-black dark:border-neutral-700 bg-white/90 dark:bg-neutral-900/90 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] text-slate-900 dark:text-neutral-200 hover:-translate-y-0.5 transition-all active:translate-y-0 active:shadow-none"
                 title={isSidebarOpen ? 'Close menu' : 'Open menu'}
                 aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
               >
                 {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
+
+              <div className="ml-auto flex items-center gap-2">
+                <Logo className="w-8 h-8" />
+                <span className="text-xl text-slate-900 dark:text-white mt-1" style={{ fontFamily: 'Excalifont' }}>ExcaliDash</span>
+                <span className="text-[10px] font-bold text-red-500 mt-2" style={{ fontFamily: 'sans-serif' }}>BETA</span>
+              </div>
             </div>
 
             <div className="flex-1 min-w-0 overflow-y-auto">
