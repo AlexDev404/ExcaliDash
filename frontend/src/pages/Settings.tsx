@@ -255,17 +255,17 @@ export const Settings: React.FC = () => {
                             Exports an `.excalidash` archive (zip) organized by collections
                         </p>
                     </div>
-                    <div className="w-full flex items-center gap-2 pt-2">
+                    <div className="w-full flex flex-col items-stretch gap-2 pt-2">
                         <button
                             onClick={exportBackup}
-                            className="flex-1 px-4 py-2 text-sm font-bold rounded-xl border-2 border-black dark:border-neutral-700 bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all"
+                            className="w-full px-4 py-2 text-sm font-bold rounded-xl border-2 border-black dark:border-neutral-700 bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all"
                         >
                             Export
                         </button>
                         <select
                             value={backupExportExt}
                             onChange={(e) => setBackupExportExt(e.target.value as any)}
-                            className="px-3 py-2 text-sm font-bold rounded-xl border-2 border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-900 dark:text-white"
+                            className="w-full px-3 py-2 text-sm font-bold rounded-xl border-2 border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-900 dark:text-white"
                             title="Download name"
                         >
                             <option value="excalidash">.excalidash</option>

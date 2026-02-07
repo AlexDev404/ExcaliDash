@@ -41,12 +41,16 @@ const DragOverlayPortal: React.FC<{ children: React.ReactNode }> = ({ children }
   return createPortal(children, document.body);
 };
 
+const PAGE_SIZE = 24;
+
 export const Dashboard: React.FC = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
   const [drawings, setDrawings] = useState<DrawingSummary[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const selectedCollectionId = React.useMemo(() => {
     if (location.pathname === '/') return undefined;
@@ -85,6 +89,7 @@ export const Dashboard: React.FC = () => {
   const [dragCurrent, setDragCurrent] = useState<Point | null>(null);
   const [potentialDragId, setPotentialDragId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const loaderRef = useRef<HTMLDivElement>(null);
 
   type SortField = 'name' | 'createdAt' | 'updatedAt';
   type SortDirection = 'asc' | 'desc';
@@ -101,14 +106,17 @@ export const Dashboard: React.FC = () => {
 
   const { uploadFiles } = useUpload();
 
+  const hasMore = drawings.length < totalCount;
+
   const refreshData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [drawingsData, collectionsData] = await Promise.all([
-        api.getDrawings(debouncedSearch, selectedCollectionId),
+      const [drawingsRes, collectionsData] = await Promise.all([
+        api.getDrawings(debouncedSearch, selectedCollectionId, { limit: PAGE_SIZE, offset: 0 }),
         api.getCollections()
       ]);
-      setDrawings(drawingsData);
+      setDrawings(drawingsRes.drawings);
+      setTotalCount(drawingsRes.totalCount);
       setCollections(collectionsData);
       setSelectedIds(new Set());
     } catch (err) {
@@ -118,9 +126,44 @@ export const Dashboard: React.FC = () => {
     }
   }, [debouncedSearch, selectedCollectionId]);
 
+  const fetchMore = useCallback(async () => {
+    if (isFetchingMore || !hasMore || isLoading) return;
+    setIsFetchingMore(true);
+    try {
+      const drawingsRes = await api.getDrawings(debouncedSearch, selectedCollectionId, {
+        limit: PAGE_SIZE,
+        offset: drawings.length
+      });
+      setDrawings(prev => [...prev, ...drawingsRes.drawings]);
+      setTotalCount(drawingsRes.totalCount);
+    } catch (err) {
+      console.error('Failed to fetch more data:', err);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  }, [isFetchingMore, hasMore, isLoading, debouncedSearch, selectedCollectionId, drawings.length]);
+
   useEffect(() => {
     refreshData();
   }, [refreshData]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          fetchMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loaderRef.current) {
+      observer.observe(loaderRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [fetchMore, hasMore]);
 
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const dragCounter = useRef(0);
@@ -324,7 +367,13 @@ export const Dashboard: React.FC = () => {
       const trashId = 'trash';
 
       // Optimistic Remove from current view
-      setDrawings(prev => prev.filter(d => d.id !== id));
+      setDrawings(prev => {
+        const next = prev.filter(d => d.id !== id);
+        if (next.length !== prev.length) {
+          setTotalCount(t => t - 1);
+        }
+        return next;
+      });
       setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
 
       try {
@@ -337,7 +386,13 @@ export const Dashboard: React.FC = () => {
   };
 
   const executePermanentDelete = async (id: string) => {
-    setDrawings(prev => prev.filter(d => d.id !== id));
+    setDrawings(prev => {
+      const next = prev.filter(d => d.id !== id);
+      if (next.length !== prev.length) {
+        setTotalCount(t => t - 1);
+      }
+      return next;
+    });
     setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     setDrawingToDelete(null); // Close modal immediately
 
@@ -393,7 +448,11 @@ export const Dashboard: React.FC = () => {
     const trashId = 'trash';
     const ids = Array.from(selectedIds);
 
-    setDrawings(prev => prev.filter(d => !selectedIds.has(d.id)));
+    setDrawings(prev => {
+      const next = prev.filter(d => !selectedIds.has(d.id));
+      setTotalCount(t => t - (prev.length - next.length));
+      return next;
+    });
     setSelectedIds(new Set());
 
     try {
@@ -406,7 +465,11 @@ export const Dashboard: React.FC = () => {
 
   const executeBulkPermanentDelete = async () => {
     const ids = Array.from(selectedIds);
-    setDrawings(prev => prev.filter(d => !selectedIds.has(d.id)));
+    setDrawings(prev => {
+      const next = prev.filter(d => !selectedIds.has(d.id));
+      setTotalCount(t => t - (prev.length - next.length));
+      return next;
+    });
     setSelectedIds(new Set());
     setShowBulkDeleteConfirm(false);
 
@@ -427,10 +490,12 @@ export const Dashboard: React.FC = () => {
     setDrawings(prev => {
       const updated = prev.map(d => selectedIds.has(d.id) ? { ...d, collectionId } : d);
       if (selectedCollectionId === undefined) return updated;
-      return updated.filter(d => {
+      const next = updated.filter(d => {
         if (selectedCollectionId === null) return d.collectionId === null;
         return d.collectionId === selectedCollectionId;
       });
+      setTotalCount(t => t - (prev.length - next.length));
+      return next;
     });
     setSelectedIds(new Set()); // Clear selection after move
     setShowBulkMoveMenu(false);
@@ -467,12 +532,16 @@ export const Dashboard: React.FC = () => {
 
   const handleMoveToCollection = async (id: string, collectionId: string | null) => {
     setDrawings(prev => {
-      return prev.map(d => d.id === id ? { ...d, collectionId } : d)
-        .filter(d => {
-          if (selectedCollectionId === undefined) return true;
-          if (selectedCollectionId === null) return d.collectionId === null;
-          return d.collectionId === selectedCollectionId;
-        });
+      const updated = prev.map(d => d.id === id ? { ...d, collectionId } : d);
+      const next = updated.filter(d => {
+        if (selectedCollectionId === undefined) return true;
+        if (selectedCollectionId === null) return d.collectionId === null;
+        return d.collectionId === selectedCollectionId;
+      });
+      if (next.length !== prev.length) {
+        setTotalCount(t => t - 1);
+      }
+      return next;
     });
     try {
       await api.updateDrawing(id, { collectionId });
@@ -567,10 +636,12 @@ export const Dashboard: React.FC = () => {
     setDrawings(prev => {
       const updated = prev.map(d => idsToMove.has(d.id) ? { ...d, collectionId: targetCollectionId } : d);
       if (selectedCollectionId === undefined) return updated;
-      return updated.filter(d => {
+      const next = updated.filter(d => {
         if (selectedCollectionId === null) return d.collectionId === null;
         return d.collectionId === selectedCollectionId;
       });
+      setTotalCount(t => t - (prev.length - next.length));
+      return next;
     });
 
     // Clear selection if we moved selected items
@@ -678,8 +749,8 @@ export const Dashboard: React.FC = () => {
         {viewTitle}
       </h1>
 
-      <div className="mb-8 flex flex-col xl:flex-row items-center justify-between gap-4">
-        <div className="flex flex-1 w-full gap-3 items-center flex-wrap">
+      <div className="mb-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div className="flex flex-1 w-full lg:w-auto gap-3 items-center flex-wrap">
           <div className="relative flex-1 group max-w-md transition-all duration-200 focus-within:-translate-y-0.5">
             <input
               ref={searchInputRef}
@@ -760,7 +831,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <div className="flex items-center gap-3 w-full lg:w-auto justify-start lg:justify-end flex-wrap">
           <div className="flex items-center gap-2 mr-2">
             <button
               onClick={handleSelectAll}
@@ -835,7 +906,7 @@ export const Dashboard: React.FC = () => {
                     >
                       <Inbox size={14} /> Unorganized
                     </button>
-                    {collections.filter(c => c.name !== 'Trash').map(c => (
+                    {collections.filter(c => c.id !== 'trash').map(c => (
                       <button
                         key={c.id}
                         onClick={() => handleBulkMove(c.id)}
@@ -933,7 +1004,10 @@ export const Dashboard: React.FC = () => {
             <Loader2 size={32} className="animate-spin" />
           </div>
         ) : (
-          <div className={clsx("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 pb-16 sm:pb-24 transition-all duration-300", isDraggingFile && "opacity-20 blur-sm")}>
+          <div
+            className={clsx("grid gap-3 sm:gap-4 pb-16 sm:pb-24 transition-all duration-300", isDraggingFile && "opacity-20 blur-sm")}
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}
+          >
             {sortedDrawings.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-16 sm:py-32 text-slate-400 dark:text-neutral-500 border-2 border-dashed border-slate-200 dark:border-neutral-700 rounded-3xl bg-slate-50/50 dark:bg-neutral-800/50">
                 <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center mb-6">
@@ -983,6 +1057,16 @@ export const Dashboard: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* Infinite Scroll Trigger */}
+        <div ref={loaderRef} className="py-8 flex justify-center items-center h-20">
+          {isFetchingMore && (
+            <div className="flex items-center gap-2 text-indigo-600 font-bold animate-in fade-in slide-in-from-bottom-2">
+              <Loader2 size={24} className="animate-spin" />
+              <span>Loading more...</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <ConfirmModal

@@ -6,7 +6,6 @@ import clsx from 'clsx';
 import { ConfirmModal } from './ConfirmModal';
 import { Logo } from './Logo';
 import { useAuth } from '../context/AuthContext';
-import { FingerprintAvatar } from './FingerprintAvatar';
 import { readImpersonationState, stopImpersonation as restoreImpersonation, type ImpersonationState } from '../utils/impersonation';
 
 interface SidebarProps {
@@ -110,6 +109,16 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
       )}
     </div>
   );
+};
+
+const getInitialsFromName = (name: string): string => {
+  const trimmed = name.trim();
+  if (!trimmed) return 'U';
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+  return trimmed.slice(0, 2).toUpperCase();
 };
 
 
@@ -374,14 +383,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
             {user && (
-              <div className="px-3 py-2 text-xs text-slate-500 dark:text-neutral-500 mb-2">
-                <div className="flex items-center gap-3">
-                  <FingerprintAvatar size={28} className="flex-shrink-0 sm:hidden" title="Browser profile" />
-                  <FingerprintAvatar size={32} className="flex-shrink-0 hidden sm:block" title="Browser profile" />
-                  <div className="min-w-0">
+              <div className="py-2 text-xs text-slate-500 dark:text-neutral-500 mb-2">
+                <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center">
+                    {getInitialsFromName(user.name)}
+                  </div>
+                  <div className="min-w-0 text-left">
                     <div className="font-semibold text-slate-700 dark:text-neutral-300 truncate leading-tight">{user.name}</div>
                     <div className="truncate leading-tight">{user.email}</div>
                   </div>
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 invisible" aria-hidden="true" />
                 </div>
               </div>
             )}
