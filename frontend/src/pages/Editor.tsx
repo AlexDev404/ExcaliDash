@@ -85,13 +85,14 @@ const UIOptions = {
   },
 };
 
-// Helper function to generate initials from a name
 const getInitialsFromName = (name: string): string => {
-  const parts = name.trim().split(/\s+/);
+  const trimmed = name.trim();
+  if (!trimmed) return 'U';
+  const parts = trimmed.split(/\s+/).filter(Boolean);
   if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
   }
-  return name.substring(0, 2).toUpperCase().padEnd(2, name[0] || 'U');
+  return trimmed.slice(0, 2).toUpperCase();
 };
 
 // Helper function to generate a color from a string (consistent hash)
@@ -118,6 +119,7 @@ export const Editor: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [initialData, setInitialData] = useState<any>(null);
   const [isSceneLoading, setIsSceneLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isSavingOnLeave, setIsSavingOnLeave] = useState(false);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [autoHideEnabled, setAutoHideEnabled] = useState(true);
@@ -326,7 +328,6 @@ export const Editor: React.FC = () => {
         button: data.button || 'up',
         selectedElementIds: data.selectedElementIds || {},
         username: data.username,
-        avatarUrl: data.avatarUrl,
         color: { background: data.color, stroke: data.color },
         id: data.userId,
       });
@@ -664,6 +665,7 @@ export const Editor: React.FC = () => {
     excalidrawAPI.current = null;
     setIsReady(false);
     setIsSceneLoading(true);
+    setLoadError(null);
     setInitialData(null);
 
     const loadData = async () => {
@@ -712,11 +714,26 @@ export const Editor: React.FC = () => {
         });
       } catch (err) {
         console.error('Failed to load drawing', err);
-        toast.error("Failed to load drawing");
+        let message = "Failed to load drawing";
+        if (api.isAxiosError(err)) {
+          const responseMessage =
+            typeof err.response?.data?.message === "string"
+              ? err.response.data.message
+              : null;
+          if (responseMessage) {
+            message = responseMessage;
+          } else if (err.response?.status === 403) {
+            message = "You do not have access to this drawing";
+          } else if (err.response?.status === 404) {
+            message = "Drawing not found";
+          }
+        }
+        toast.error(message);
         latestElementsRef.current = [];
         latestFilesRef.current = {};
         lastSyncedFilesRef.current = {};
-        setInitialData(buildEmptyScene());
+        setLoadError(message);
+        setInitialData(null);
       } finally {
         setIsSceneLoading(false);
       }
@@ -1014,7 +1031,24 @@ export const Editor: React.FC = () => {
           marginTop: isHeaderVisible ? '3.5rem' : '0'
         }}
       >
-        {initialData ? (
+        {loadError ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white dark:bg-neutral-950 px-6">
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                Unable to open drawing
+              </h2>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                {loadError}
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/')}
+              className="px-4 py-2 rounded-lg border-2 border-black dark:border-neutral-700 bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-semibold hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+            >
+              Back to dashboard
+            </button>
+          </div>
+        ) : initialData ? (
           <Excalidraw
             key={id}
             theme={theme === 'dark' ? 'dark' : 'light'}

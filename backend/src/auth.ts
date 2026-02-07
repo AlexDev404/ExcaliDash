@@ -9,7 +9,7 @@ import { z } from "zod";
 import { PrismaClient, Prisma } from "./generated/client";
 import { config } from "./config";
 import { requireAuth, optionalAuth } from "./middleware/auth";
-import { sanitizeText } from "./security";
+import { sanitizeText, getCsrfTokenHeader, validateCsrfToken } from "./security";
 import rateLimit, { MemoryStore } from "express-rate-limit";
 import { logAuditEvent } from "./utils/audit";
 import crypto from "crypto";
@@ -278,6 +278,36 @@ const requireAdmin = (
     res.status(403).json({ error: "Forbidden", message: "Admin access required" });
     return false;
   }
+  return true;
+};
+
+const getClientId = (req: Request): string => {
+  const ip = req.ip || req.connection.remoteAddress || "unknown";
+  const userAgent = req.headers["user-agent"] || "unknown";
+  return `${ip}:${userAgent}`.slice(0, 256);
+};
+
+const requireCsrf = (req: Request, res: Response): boolean => {
+  const headerName = getCsrfTokenHeader();
+  const tokenHeader = req.headers[headerName];
+  const token = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
+
+  if (!token) {
+    res.status(403).json({
+      error: "CSRF token missing",
+      message: `Missing ${headerName} header`,
+    });
+    return false;
+  }
+
+  if (!validateCsrfToken(getClientId(req), token)) {
+    res.status(403).json({
+      error: "CSRF token invalid",
+      message: "Invalid or expired CSRF token. Please refresh and try again.",
+    });
+    return false;
+  }
+
   return true;
 };
 
@@ -968,6 +998,8 @@ router.get("/status", optionalAuth, async (req: Request, res: Response) => {
  */
 router.post("/auth-enabled", optionalAuth, async (req: Request, res: Response) => {
   try {
+    if (!requireCsrf(req, res)) return;
+
     const parsed = authEnabledToggleSchema.safeParse(req.body);
     if (!parsed.success) {
       return res
@@ -1477,6 +1509,15 @@ router.patch("/users/:id", requireAuth, async (req: Request, res: Response) => {
 
     res.json({ user: updated });
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "User with this username already exists",
+      });
+    }
     console.error("Update user error:", error);
     res.status(500).json({
       error: "Internal server error",
@@ -1745,7 +1786,7 @@ router.post("/password-reset-request", loginAttemptRateLimiter, async (req: Requ
             : `http://${baseUrlRaw}`
           : "http://localhost:6767";
         const baseUrl = baseUrlWithProtocol.replace(/\/$/, "");
-        console.log(`[DEV] Reset URL: ${baseUrl}/reset-password?token=${resetToken}`);
+        console.log(`[DEV] Reset URL: ${baseUrl}/reset-password-confirm?token=${resetToken}`);
       }
     }
 

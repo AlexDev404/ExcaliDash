@@ -5,7 +5,7 @@ import { PenTool, Trash2, FolderInput, ArrowRight, Check, Clock, Copy, Download,
 import type { DrawingSummary, Collection, Drawing } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import clsx from 'clsx';
-import { exportToSvg } from "@excalidraw/excalidraw";
+// import { exportToSvg } from "@excalidraw/excalidraw"; // Lazy load this instead
 import { exportDrawingToFile } from '../utils/exportUtils';
 
 import * as api from '../api';
@@ -111,6 +111,11 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
         const data = await ensureFullData();
         if (cancelled) return;
         if (!data?.elements || !data?.appState) return;
+
+        // Lazy load exportToSvg to keep the main bundle small
+        const { exportToSvg } = await import("@excalidraw/excalidraw");
+        
+        if (cancelled) return;
 
         const svg = await exportToSvg({
           elements: data.elements,
@@ -243,18 +248,18 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
 
           {previewSvg ? (
             <div
-              className="w-full h-full p-6 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:object-contain [&>svg]:drop-shadow-sm dark:[&>svg]:invert dark:[&>svg_rect[fill='white']]:opacity-0 dark:[&>svg_rect[fill='#ffffff']]:opacity-0 transition-transform duration-500 group-hover:scale-105"
+              className="w-full h-full p-3 sm:p-4 lg:p-5 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:object-contain [&>svg]:drop-shadow-sm dark:[&>svg]:invert dark:[&>svg_rect[fill='white']]:opacity-0 dark:[&>svg_rect[fill='#ffffff']]:opacity-0 transition-transform duration-500 group-hover:scale-105"
               dangerouslySetInnerHTML={{ __html: previewSvg }}
             />
           ) : (
-            <div className="w-24 h-24 bg-white dark:bg-neutral-900 rounded-2xl shadow-sm flex items-center justify-center text-neutral-300 dark:text-neutral-400 border border-slate-100 dark:border-neutral-700 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
-              <PenTool size={40} strokeWidth={1.5} />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-white dark:bg-neutral-900 rounded-2xl shadow-sm flex items-center justify-center text-neutral-300 dark:text-neutral-400 border border-slate-100 dark:border-neutral-700 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+              <PenTool size={32} strokeWidth={1.5} className="sm:w-9 sm:h-9 lg:w-10 lg:h-10" />
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-5 bg-white dark:bg-neutral-900 rounded-b-2xl relative z-10">
+        <div className="p-3 sm:p-4 lg:p-5 bg-white dark:bg-neutral-900 rounded-b-2xl relative z-10">
           {isRenaming ? (
             <form
               onSubmit={handleRenameSubmit}
@@ -270,12 +275,12 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
                 onBlur={() => setIsRenaming(false)}
                 onDragStart={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full px-2 py-1 -ml-2 text-base font-bold text-slate-900 dark:text-white border-2 border-black dark:border-neutral-600 rounded-lg focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] bg-white dark:bg-neutral-800"
+                className="w-full px-2 py-1 -ml-2 text-sm sm:text-base font-bold text-slate-900 dark:text-white border-2 border-black dark:border-neutral-600 rounded-lg focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] bg-white dark:bg-neutral-800"
               />
             </form>
           ) : (
             <h3
-              className="text-base font-bold text-slate-800 dark:text-neutral-100 truncate cursor-text select-none group-hover:text-neutral-900 dark:group-hover:text-white transition-colors"
+              className="text-sm sm:text-base font-bold text-slate-800 dark:text-neutral-100 truncate cursor-text select-none group-hover:text-neutral-900 dark:group-hover:text-white transition-colors"
               title={drawing.name}
               onDoubleClick={(e) => {
                 e.stopPropagation();
@@ -285,9 +290,9 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
               {drawing.name}
             </h3>
           )}
-          <div className="flex items-center justify-between mt-3 relative">
-            <p className="text-[11px] font-medium text-slate-400 dark:text-neutral-500 flex items-center gap-1.5">
-              <Clock size={11} />
+          <div className="flex items-center justify-between mt-2.5 sm:mt-3 relative">
+            <p className="text-[10px] sm:text-[11px] font-medium text-slate-400 dark:text-neutral-500 flex items-center gap-1 sm:gap-1.5">
+              <Clock size={10} className="sm:w-[11px] sm:h-[11px]" />
               {formatDistanceToNow(drawing.updatedAt)} ago
             </p>
 
@@ -451,4 +456,3 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
     </>
   );
 };
-

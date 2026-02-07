@@ -49,6 +49,8 @@ model Collection {
   drawings  Drawing[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  @@index([userId, updatedAt])
 }
 
 model Drawing {
@@ -65,6 +67,9 @@ model Drawing {
   collection   Collection? @relation(fields: [collectionId], references: [id])
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+
+  @@index([userId, updatedAt])
+  @@index([userId, collectionId, updatedAt])
 }
 
 model Library {

@@ -5,6 +5,8 @@ export interface UserIdentity {
   color: string;
 }
 
+const DEVICE_ID_KEY = "excalidash-device-id";
+
 const TRANSFORMERS = [
   { name: "Optimus Prime", initials: "OP" },
   { name: "Megatron", initials: "ME" },
@@ -80,6 +82,17 @@ const COLORS = [
   "#f43f5e", // rose-500
 ];
 
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+const hashString = (input: string): number => {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+};
+
 const generateClientId = (): string => {
   const cryptoObj: Crypto | undefined =
     typeof globalThis !== "undefined"
@@ -105,20 +118,42 @@ const generateClientId = (): string => {
   return `id-${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
 };
 
+export const getOrCreateBrowserFingerprint = (): string => {
+  const existing = localStorage.getItem(DEVICE_ID_KEY);
+  if (existing) return existing;
+  const generated = generateClientId();
+  localStorage.setItem(DEVICE_ID_KEY, generated);
+  return generated;
+};
+
+export const getFingerprintInitials = (seed?: string): string => {
+  const fingerprint = seed || getOrCreateBrowserFingerprint();
+  const hash = hashString(fingerprint);
+  const first = ALPHABET[hash % ALPHABET.length];
+  const second = ALPHABET[Math.floor(hash / ALPHABET.length) % ALPHABET.length];
+  return `${first}${second}`;
+};
+
 export const getUserIdentity = (): UserIdentity => {
   const stored = localStorage.getItem("excalidash-user-id");
   if (stored) {
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored) as UserIdentity;
+    if (!parsed.initials || parsed.initials.length !== 2) {
+      parsed.initials = getFingerprintInitials(parsed.id);
+      localStorage.setItem("excalidash-user-id", JSON.stringify(parsed));
+    }
+    return parsed;
   }
 
+  const deviceId = getOrCreateBrowserFingerprint();
   const randomTransformer =
     TRANSFORMERS[Math.floor(Math.random() * TRANSFORMERS.length)];
   const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
 
   const identity: UserIdentity = {
-    id: generateClientId(),
+    id: deviceId,
     name: randomTransformer.name,
-    initials: randomTransformer.initials,
+    initials: getFingerprintInitials(deviceId),
     color: randomColor,
   };
 

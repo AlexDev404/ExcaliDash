@@ -218,33 +218,50 @@ const deserializeDrawing = (drawing: unknown): Drawing => {
   return deserializeTimestamps(drawing as HasTimestamps & Drawing);
 };
 
+export interface PaginatedDrawings<T> {
+  drawings: T[];
+  totalCount: number;
+  limit?: number;
+  offset?: number;
+}
+
 export function getDrawings(
   search?: string,
-  collectionId?: string | null
-): Promise<DrawingSummary[]>;
+  collectionId?: string | null,
+  options?: { limit?: number; offset?: number }
+): Promise<PaginatedDrawings<DrawingSummary>>;
 
 export function getDrawings(
   search: string | undefined,
   collectionId: string | null | undefined,
-  options: { includeData: true }
-): Promise<Drawing[]>;
+  options: { includeData: true; limit?: number; offset?: number }
+): Promise<PaginatedDrawings<Drawing>>;
 
 export async function getDrawings(
   search?: string,
   collectionId?: string | null,
-  options?: { includeData?: boolean }
+  options?: { includeData?: boolean; limit?: number; offset?: number }
 ) {
-  const params: Record<string, string> = {};
+  const params: Record<string, string | number> = {};
   if (search) params.search = search;
   if (collectionId !== undefined)
     params.collectionId = collectionId === null ? "null" : collectionId;
+  if (options?.limit !== undefined) params.limit = options.limit;
+  if (options?.offset !== undefined) params.offset = options.offset;
+
   if (options?.includeData) {
     params.includeData = "true";
-    const response = await api.get<Drawing[]>("/drawings", { params });
-    return response.data.map(deserializeDrawing);
+    const response = await api.get<PaginatedDrawings<Drawing>>("/drawings", { params });
+    return {
+      ...response.data,
+      drawings: response.data.drawings.map(deserializeDrawing)
+    };
   }
-  const response = await api.get<DrawingSummary[]>("/drawings", { params });
-  return response.data.map(deserializeDrawingSummary);
+  const response = await api.get<PaginatedDrawings<DrawingSummary>>("/drawings", { params });
+  return {
+    ...response.data,
+    drawings: response.data.drawings.map(deserializeDrawingSummary)
+  };
 }
 
 export const getDrawing = async (id: string) => {
