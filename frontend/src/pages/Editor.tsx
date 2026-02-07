@@ -124,7 +124,7 @@ export const Editor: React.FC = () => {
   const latestFilesRef = useRef<any>(null);
   const lastSyncedFilesRef = useRef<Record<string, any>>({});
   const latestAppStateRef = useRef<any>(null);
-  const debouncedSaveRef = useRef<((elements: readonly any[], appState: any) => void) | null>(null);
+  const debouncedSaveRef = useRef<((drawingId: string, elements: readonly any[], appState: any) => void) | null>(null);
 
   const emitFilesDeltaIfNeeded = useCallback(
     (nextFiles: Record<string, any>) => {
@@ -361,13 +361,13 @@ export const Editor: React.FC = () => {
         const didEmit = emitFilesDeltaIfNeeded(nextFiles);
 
         // Persist after file data becomes available so new tabs (tab3) load correctly.
-        if (didEmit && latestAppStateRef.current && debouncedSaveRef.current) {
-          debouncedSaveRef.current(latestElementsRef.current, latestAppStateRef.current);
+        if (didEmit && id && latestAppStateRef.current && debouncedSaveRef.current) {
+          debouncedSaveRef.current(id, latestElementsRef.current, latestAppStateRef.current);
         }
       };
     }
     setIsReady(true);
-  }, [emitFilesDeltaIfNeeded]);
+  }, [emitFilesDeltaIfNeeded, id]);
 
   // Handle #addLibrary URL hash parameter for importing libraries from links
   useEffect(() => {
@@ -428,12 +428,12 @@ export const Editor: React.FC = () => {
     scrollToContent: true,
   }), []);
 
-  const saveDataRef = useRef<((elements: readonly any[], appState: any) => Promise<void>) | null>(null);
-  const savePreviewRef = useRef<((elements: readonly any[], appState: any, files: any) => Promise<void>) | null>(null);
+  const saveDataRef = useRef<((drawingId: string, elements: readonly any[], appState: any) => Promise<void>) | null>(null);
+  const savePreviewRef = useRef<((drawingId: string, elements: readonly any[], appState: any, files: any) => Promise<void>) | null>(null);
   const saveLibraryRef = useRef<((items: any[]) => Promise<void>) | null>(null);
 
-  saveDataRef.current = async (elements: readonly any[], appState: any) => {
-    if (!id) return;
+  saveDataRef.current = async (drawingId: string, elements: readonly any[], appState: any) => {
+    if (!drawingId) return;
 
     try {
       const persistableAppState = {
@@ -446,27 +446,27 @@ export const Editor: React.FC = () => {
       const persistableElements = Array.isArray(snapshot) ? snapshot : [];
 
       console.log("[Editor] Saving drawing", {
-        drawingId: id,
+        drawingId,
         elementCount: persistableElements.length,
         hasRenderableElements: persistableElements.some((el: any) => !el?.isDeleted),
         appState: persistableAppState,
       });
 
-      await api.updateDrawing(id, {
+      await api.updateDrawing(drawingId, {
         elements: persistableElements,
         appState: persistableAppState,
         files: latestFilesRef.current || {},
       });
 
-      console.log("[Editor] Save complete", { drawingId: id });
+      console.log("[Editor] Save complete", { drawingId });
     } catch (err) {
       console.error('Failed to save drawing', err);
       toast.error("Failed to save changes");
     }
   };
 
-  savePreviewRef.current = async (elements: readonly any[], appState: any, files: any) => {
-    if (!id) return;
+  savePreviewRef.current = async (drawingId: string, elements: readonly any[], appState: any, files: any) => {
+    if (!drawingId) return;
 
     try {
       const currentSnapshot = latestElementsRef.current ?? elements;
@@ -484,13 +484,13 @@ export const Editor: React.FC = () => {
       const preview = svg.outerHTML;
 
       console.log("[Editor] Saving preview", {
-        drawingId: id,
+        drawingId,
         elementCount: currentSnapshot.length,
       });
 
-      await api.updateDrawing(id, { preview });
+      await api.updateDrawing(drawingId, { preview });
 
-      console.log("[Editor] Preview save complete", { drawingId: id });
+      console.log("[Editor] Preview save complete", { drawingId });
     } catch (err) {
       console.error('Failed to save preview', err);
     }
@@ -509,9 +509,9 @@ export const Editor: React.FC = () => {
 
 
   const debouncedSave = useCallback(
-    debounce((elements, appState) => {
+    debounce((drawingId, elements, appState) => {
       if (saveDataRef.current) {
-        saveDataRef.current(elements, appState);
+        saveDataRef.current(drawingId, elements, appState);
       }
     }, 1000),
     [] // Empty dependency array = Stable across renders
@@ -519,9 +519,9 @@ export const Editor: React.FC = () => {
   // Allow non-hook code (e.g., Excalidraw API wrappers) to trigger debounced saves.
   debouncedSaveRef.current = debouncedSave;
   const debouncedSavePreview = useCallback(
-    debounce((elements, appState, files) => {
+    debounce((drawingId, elements, appState, files) => {
       if (savePreviewRef.current) {
-        savePreviewRef.current(elements, appState, files);
+        savePreviewRef.current(drawingId, elements, appState, files);
       }
     }, 10000),
     []
@@ -535,6 +535,13 @@ export const Editor: React.FC = () => {
     }, 1000),
     []
   );
+
+  useEffect(() => {
+    return () => {
+      debouncedSave.cancel();
+      debouncedSavePreview.cancel();
+    };
+  }, [debouncedSave, debouncedSavePreview]);
 
   const broadcastChanges = useCallback(
     throttle((elements: readonly any[], currentFiles?: Record<string, any>) => {
@@ -670,8 +677,9 @@ export const Editor: React.FC = () => {
           const files = excalidrawAPI.current.getFiles() || {};
           latestElementsRef.current = elements;
           latestFilesRef.current = files;
-          await saveDataRef.current(elements, appState);
-          savePreviewRef.current(elements, appState, files);
+          if (!id) return;
+          await saveDataRef.current(id, elements, appState);
+          savePreviewRef.current(id, elements, appState, files);
           toast.success("Saved changes to server");
         }
       }
@@ -739,7 +747,9 @@ export const Editor: React.FC = () => {
       elementCount: allElements.length,
       hasRenderableElements,
     });
-    debouncedSave(allElements, appState);
+    if (id) {
+      debouncedSave(id, allElements, appState);
+    }
 
     // Trigger Slow Preview Gen
     const filesSnapshot = currentFiles;
@@ -748,8 +758,10 @@ export const Editor: React.FC = () => {
       drawingId: id,
       fileCount: Object.keys(filesSnapshot).length,
     });
-    debouncedSavePreview(allElements, appState, filesSnapshot);
-  }, [debouncedSave, debouncedSavePreview, broadcastChanges]);
+    if (id) {
+      debouncedSavePreview(id, allElements, appState, filesSnapshot);
+    }
+  }, [debouncedSave, debouncedSavePreview, broadcastChanges, id]);
 
   // Ensure file-only updates (e.g. pasted image dataURL arriving asynchronously)
   // are still broadcast to collaborators AND persisted to the server.
@@ -767,7 +779,7 @@ export const Editor: React.FC = () => {
 
       // Persist after file data becomes available (covers the "tab 3" case).
       if (didEmit && latestAppStateRef.current && debouncedSaveRef.current) {
-        debouncedSaveRef.current(latestElementsRef.current, latestAppStateRef.current);
+        debouncedSaveRef.current(id, latestElementsRef.current, latestAppStateRef.current);
       }
     }, 1000);
 
@@ -803,6 +815,7 @@ export const Editor: React.FC = () => {
     // Save drawing and generate preview before navigating
     try {
       if (excalidrawAPI.current && saveDataRef.current && savePreviewRef.current) {
+        if (!id) return;
         const elements = excalidrawAPI.current.getSceneElementsIncludingDeleted();
         const appState = excalidrawAPI.current.getAppState();
         const files = excalidrawAPI.current.getFiles() || {};
@@ -810,8 +823,8 @@ export const Editor: React.FC = () => {
         latestFilesRef.current = files;
 
         await Promise.all([
-          saveDataRef.current(elements, appState),
-          savePreviewRef.current(elements, appState, files)
+          saveDataRef.current(id, elements, appState),
+          savePreviewRef.current(id, elements, appState, files)
         ]);
         console.log("[Editor] Saved on back navigation", { drawingId: id });
       }
