@@ -1,4 +1,5 @@
 import { promises as fsPromises } from "fs";
+import path from "path";
 import JSZip from "jszip";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -9,9 +10,41 @@ import {
   findFirstDuplicate,
   getSafeZipEntry,
   getUserTrashCollectionId,
-  resolveSafeUploadedFilePath,
   sanitizeDrawingData,
 } from "./shared";
+
+const isSafeMulterTempFilename = (value: string): boolean => /^[a-f0-9]{32}$/.test(value);
+
+const isPathInsideDirectory = (candidatePath: string, rootDir: string): boolean => {
+  const relativePath = path.relative(rootDir, candidatePath);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+};
+
+const resolveStagedUploadPath = async (
+  file: { filename?: unknown },
+  uploadRoot: string
+): Promise<string> => {
+  const absoluteUploadRoot = path.resolve(uploadRoot);
+
+  let canonicalUploadRoot = absoluteUploadRoot;
+  try {
+    canonicalUploadRoot = await fsPromises.realpath(absoluteUploadRoot);
+  } catch {
+    throw new ImportValidationError("Invalid upload path");
+  }
+
+  const filename = typeof file.filename === "string" ? file.filename : "";
+  if (!isSafeMulterTempFilename(filename)) {
+    throw new ImportValidationError("Invalid upload path");
+  }
+
+  const candidatePath = path.resolve(canonicalUploadRoot, filename);
+  if (!isPathInsideDirectory(candidatePath, canonicalUploadRoot)) {
+    throw new ImportValidationError("Invalid upload path");
+  }
+
+  return candidatePath;
+};
 
 export const registerExcalidashImportRoutes = (deps: RegisterImportExportDeps) => {
   const {
@@ -40,10 +73,7 @@ export const registerExcalidashImportRoutes = (deps: RegisterImportExportDeps) =
 
     let stagedPath: string;
     try {
-      stagedPath = await resolveSafeUploadedFilePath(
-        { filename: req.file.filename },
-        uploadDir
-      );
+      stagedPath = await resolveStagedUploadPath({ filename: req.file.filename }, uploadDir);
     } catch (error) {
       if (error instanceof ImportValidationError) {
         return res.status(error.status).json({ error: "Invalid upload", message: error.message });
@@ -153,10 +183,7 @@ export const registerExcalidashImportRoutes = (deps: RegisterImportExportDeps) =
 
     let stagedPath: string;
     try {
-      stagedPath = await resolveSafeUploadedFilePath(
-        { filename: req.file.filename },
-        uploadDir
-      );
+      stagedPath = await resolveStagedUploadPath({ filename: req.file.filename }, uploadDir);
     } catch (error) {
       if (error instanceof ImportValidationError) {
         return res.status(error.status).json({ error: "Invalid upload", message: error.message });
