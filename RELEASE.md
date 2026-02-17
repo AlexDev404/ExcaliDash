@@ -1,4 +1,4 @@
-# ExcaliDash v0.4.23-dev
+# ExcaliDash v0.4.24-dev
 
 Release date: 2026-02-17
 
@@ -27,9 +27,9 @@ Edit `docker-compose.prod.yml` and pin the release tags:
 ```yaml
 services:
   backend:
-    image: zimengxiong/excalidash-backend:v0.4.23-dev
+    image: zimengxiong/excalidash-backend:v0.4.24-dev
   frontend:
-    image: zimengxiong/excalidash-frontend:v0.4.23-dev
+    image: zimengxiong/excalidash-frontend:v0.4.24-dev
 ```
 
 Example:
@@ -40,4 +40,4 @@ docker compose -f docker-compose.prod.yml up -d
 
 </details>
 
-fix CSRF session swapping, tightend unsasfe allowances, return 401 for inactive accounts
+Added scoped permissions and global access settings. Improved performance in collaboration
