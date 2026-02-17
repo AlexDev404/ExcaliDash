@@ -3,9 +3,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const VERSION_FILE = 'VERSION';
-const BACKEND_PACKAGE = 'backend/package.json';
-const FRONTEND_PACKAGE = 'frontend/package.json';
+const ROOT_DIR = path.resolve(__dirname, '..');
+const VERSION_FILE = path.join(ROOT_DIR, 'VERSION');
+const BACKEND_PACKAGE = path.join(ROOT_DIR, 'backend/package.json');
+const FRONTEND_PACKAGE = path.join(ROOT_DIR, 'frontend/package.json');
 
 const colors = {
   red: '\x1b[31m',
@@ -23,7 +24,7 @@ function log(message, color = 'reset') {
 function showHelp() {
   log('ExcaliDash Version Manager', 'blue');
   log('');
-  log('Usage: node version-manager.js [COMMAND] [VERSION_TYPE]');
+  log('Usage: node scripts/version-manager.js [COMMAND] [VERSION_TYPE]');
   log('');
   log('Commands:');
   log('  get                 Get current version');
@@ -35,10 +36,10 @@ function showHelp() {
   log('  help                Show this help message');
   log('');
   log('Examples:');
-  log('  node version-manager.js get');
-  log('  node version-manager.js set 1.2.3');
-  log('  node version-manager.js patch');
-  log('  node version-manager.js minor');
+  log('  node scripts/version-manager.js get');
+  log('  node scripts/version-manager.js set 1.2.3');
+  log('  node scripts/version-manager.js patch');
+  log('  node scripts/version-manager.js minor');
 }
 
 function getCurrentVersion() {

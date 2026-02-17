@@ -395,7 +395,7 @@ release: ## Full release workflow (main branch only)
 	@echo ""
 	@# Build and push Docker images
 	@echo "$(YELLOW)Building and pushing Docker images...$(NC)"
-	@./publish-docker.sh
+	@./scripts/publish-docker.sh
 	@echo ""
 	@echo "$(GREEN)===========================================$(NC)"
 	@echo "$(GREEN)     Release Complete!$(NC)"
@@ -532,7 +532,7 @@ pre-release: ## Pre-release workflow (pre-release branch only)
 	@echo ""
 	@# Build and push Docker images
 	@echo "$(YELLOW)Building and pushing Docker images...$(NC)"
-	@./publish-docker-prerelease.sh
+	@./scripts/publish-docker-prerelease.sh
 	@echo ""
 	@echo "$(BLUE)===========================================$(NC)"
 	@echo "$(GREEN)     Pre-Release Complete!$(NC)"
@@ -545,10 +545,10 @@ pre-release: ## Pre-release workflow (pre-release branch only)
 	echo "$(GREEN)✓ Docker images published$(NC)"
 
 release-docker: ## Build and push release Docker images
-	./publish-docker.sh
+	./scripts/publish-docker.sh
 
 pre-release-docker: ## Build and push pre-release Docker images
-	./publish-docker-prerelease.sh
+	./scripts/publish-docker-prerelease.sh
 
 dev-release: ## Build and push custom dev release (usage: make dev-release NAME=issue38)
 	@if [ -z "$(NAME)" ]; then \
@@ -559,7 +559,7 @@ dev-release: ## Build and push custom dev release (usage: make dev-release NAME=
 		exit 1; \
 	fi
 	@echo "$(BLUE)Building custom dev release: $(NAME)$(NC)"
-	@./publish-docker-dev.sh $(NAME)
+	@./scripts/publish-docker-dev.sh $(NAME)
 
 #===============================================================================
 # DATABASE

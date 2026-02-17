@@ -51,13 +51,17 @@ ExcaliDash/
 ├── AGENTS.md                 # This file - developer guide
 ├── DOCKER.md                 # Docker documentation
 ├── .gitignore               # Git ignore rules
-├── .dockerignore            # Docker ignore rules
-├── docker-compose.yml       # Production Docker setup
-├── docker-compose.prod.yml  # Additional production config
-├── publish-docker.sh        # Docker deployment script
-│
-├── backend/                 # Node.js/Express backend
-│   ├── src/
+	├── .dockerignore            # Docker ignore rules
+	├── docker-compose.yml       # Production Docker setup
+	├── docker-compose.prod.yml  # Additional production config
+	├── scripts/                 # Local helper scripts
+	│   ├── publish-docker.sh    # Docker deployment script
+	│   ├── publish-docker-dev.sh # Docker dev release script
+	│   ├── publish-docker-prerelease.sh # Docker pre-release script
+	│   └── version-manager.js   # Version bump/sync helper
+	│
+	├── backend/                 # Node.js/Express backend
+	│   ├── src/
 │   │   ├── index.ts         # Main server file
 │   │   └── generated/       # Prisma generated client
 │   ├── prisma/
