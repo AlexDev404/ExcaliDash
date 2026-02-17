@@ -530,9 +530,19 @@ export const registerCoreRoutes = (deps: RegisterCoreRoutesDeps) => {
       }
 
       if (!user.isActive) {
-        return res.status(403).json({
-          error: "Forbidden",
-          message: "Account is inactive",
+        // Avoid user enumeration: treat inactive accounts as invalid credentials.
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Invalid email or password",
+        });
+      }
+
+      // Some accounts (e.g. OIDC-provisioned) may not have a usable local password hash.
+      // Treat these as invalid credentials rather than throwing (bcrypt can throw on invalid hashes).
+      if (!user.passwordHash || !user.passwordHash.startsWith("$2")) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Invalid email or password",
         });
       }
 
@@ -610,13 +620,14 @@ export const registerCoreRoutes = (deps: RegisterCoreRoutesDeps) => {
   router.post("/refresh", async (req: Request, res: Response) => {
     try {
       if (!(await ensureAuthEnabled(res))) return;
-      const oldRefreshTokenFromBody =
-        typeof req.body?.refreshToken === "string" ? req.body.refreshToken : null;
-      const oldRefreshToken = oldRefreshTokenFromBody || readRefreshTokenFromRequest(req);
+      // Refresh is cookie-only to prevent login CSRF / session swapping via cross-site form posts.
+      // Require CSRF + origin checks before rotating/issuing new cookies.
+      if (!requireCsrf(req, res)) return;
+      const oldRefreshToken = readRefreshTokenFromRequest(req);
 
       if (!oldRefreshToken || typeof oldRefreshToken !== "string") {
-        return res.status(400).json({
-          error: "Bad request",
+        return res.status(401).json({
+          error: "Unauthorized",
           message: "Refresh token required",
         });
       }

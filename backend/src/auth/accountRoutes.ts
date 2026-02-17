@@ -305,6 +305,12 @@ export const registerAccountRoutes = (deps: RegisterAccountRoutesDeps) => {
           message: "Cannot change email for this account",
         });
       }
+      if (!user.passwordHash.startsWith("$2")) {
+        return res.status(400).json({
+          error: "Bad request",
+          message: "Cannot change email for this account",
+        });
+      }
 
       const passwordValid = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
       if (!passwordValid) {
@@ -423,6 +429,14 @@ export const registerAccountRoutes = (deps: RegisterAccountRoutesDeps) => {
       });
       if (!user || !user.isActive) {
         return res.status(404).json({ error: "Not found", message: "User not found" });
+      }
+
+      // OIDC-provisioned users may not have a usable local password hash until they set/reset one.
+      if (!user.passwordHash || !user.passwordHash.startsWith("$2")) {
+        return res.status(400).json({
+          error: "Bad request",
+          message: "Cannot change password for this account",
+        });
       }
 
       const passwordValid = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);

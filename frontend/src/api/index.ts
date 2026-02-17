@@ -123,18 +123,9 @@ export const authMe = async (): Promise<{ user: AuthUser }> => {
   return response.data;
 };
 
-export const authRefresh = async (
-  refreshToken?: string
-): Promise<void> => {
-  const body =
-    typeof refreshToken === "string" && refreshToken.trim().length > 0
-      ? { refreshToken }
-      : {};
-  await axios.post<{ ok?: boolean }>(
-    `${API_URL}/auth/refresh`,
-    body,
-    { withCredentials: true }
-  );
+export const authRefresh = async (): Promise<void> => {
+  // Cookie-only refresh; body tokens are intentionally not supported.
+  await api.post<{ ok?: boolean }>("/auth/refresh", {});
 };
 
 export const authLogout = async (): Promise<void> => {
@@ -265,7 +256,6 @@ const refreshAccessToken = async (): Promise<void> => {
 api.interceptors.request.use(
   async (config) => {
     const publicAuthEndpoints = [
-      '/auth/refresh',
       '/auth/password-reset-request',
       '/auth/password-reset-confirm',
     ];

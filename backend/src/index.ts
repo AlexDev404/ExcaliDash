@@ -226,9 +226,45 @@ const shouldEnforceHttps =
   allowedOrigins.some((origin) => origin.toLowerCase().startsWith("https://"));
 
 if (shouldEnforceHttps) {
+  const httpsOrigins = allowedOrigins.filter((origin) =>
+    origin.toLowerCase().startsWith("https://")
+  );
+  const canonicalHttpsOrigin = httpsOrigins[0] || allowedOrigins[0] || null;
+  const allowedOriginHosts = new Set(
+    allowedOrigins
+      .map((origin) => {
+        try {
+          return new URL(origin).host.toLowerCase();
+        } catch {
+          return null;
+        }
+      })
+      .filter((host): host is string => Boolean(host))
+  );
+
   app.use((req, res, next) => {
     if (req.header("x-forwarded-proto") !== "https") {
-      res.redirect(`https://${req.header("host")}${req.url}`);
+      // Avoid Host-header based open redirects; prefer a configured canonical origin/host.
+      const rawHost = String(req.header("host") || "").trim().toLowerCase();
+      const safeHost = allowedOriginHosts.has(rawHost) ? rawHost : null;
+      const fallbackHost = (() => {
+        if (!canonicalHttpsOrigin) return null;
+        try {
+          return new URL(canonicalHttpsOrigin).host;
+        } catch {
+          return null;
+        }
+      })();
+
+      const targetHost = safeHost || fallbackHost;
+      if (!targetHost) {
+        return res.status(400).send("Invalid host");
+      }
+
+      const path = (req.originalUrl || req.url || "/").startsWith("/")
+        ? (req.originalUrl || req.url || "/")
+        : "/";
+      res.redirect(`https://${targetHost}${path}`);
     } else {
       next();
     }
@@ -239,23 +275,14 @@ app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: [
-          "'self'",
-          "'unsafe-inline'", // Required for Excalidraw
-          "'unsafe-eval'", // Required for Excalidraw
-          "https://cdn.jsdelivr.net",
-          "https://unpkg.com",
-        ],
-        styleSrc: [
-          "'self'",
-          "'unsafe-inline'", // Required for Excalidraw
-          "https://fonts.googleapis.com",
-        ],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "blob:", "https:"],
-        connectSrc: ["'self'", "ws:", "wss:"],
+        // Backend serves JSON APIs; keep CSP strict and avoid 'unsafe-*'.
+        defaultSrc: ["'none'"],
+        baseUri: ["'none'"],
+        formAction: ["'none'"],
         frameAncestors: ["'none'"],
+        objectSrc: ["'none'"],
+        imgSrc: ["'self'", "data:"],
+        connectSrc: ["'self'"],
       },
     },
     hsts: {
