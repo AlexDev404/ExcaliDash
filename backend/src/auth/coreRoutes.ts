@@ -1044,10 +1044,10 @@ export const registerCoreRoutes = (deps: RegisterCoreRoutesDeps) => {
 
   router.post("/auth-enabled", requireAuth, async (req: Request, res: Response) => {
     try {
-      if (config.authMode === "oidc_enforced") {
+      if (config.authMode !== "local") {
         return res.status(409).json({
           error: "Conflict",
-          message: "Authentication mode is managed by AUTH_MODE=oidc_enforced",
+          message: `Authentication mode is managed by AUTH_MODE=${config.authMode}`,
         });
       }
       if (!requireCsrf(req, res)) return;

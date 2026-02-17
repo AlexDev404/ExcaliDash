@@ -5,6 +5,7 @@ import path from "path";
 import os from "os";
 import JSZip from "jszip";
 import { getTestPrisma, setupTestDb, cleanupTestDb } from "./testUtils";
+import { BOOTSTRAP_USER_ID } from "../auth/authMode";
 
 type LegacyDbOptions = {
   tableStyle: "prisma" | "plural-lower";
@@ -342,13 +343,13 @@ describe("Import compatibility (legacy exports)", () => {
     });
 
     // In single-user mode, imports land on the bootstrap acting user.
-    expect(importedDrawings.every((d) => d.userId === "bootstrap-admin")).toBe(true);
+    expect(importedDrawings.every((d) => d.userId === BOOTSTRAP_USER_ID)).toBe(true);
     expect(importedDrawings.map((d) => d.id)).toEqual(
       expect.arrayContaining(["legacy-drawing-1", "legacy-drawing-2", "legacy-drawing-trash"])
     );
 
     const trash = await prisma.collection.findUnique({
-      where: { id: "trash:bootstrap-admin" },
+      where: { id: `trash:${BOOTSTRAP_USER_ID}` },
     });
     expect(trash).toBeTruthy();
   });
