@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { ExternalLink, RefreshCw, XCircle } from "lucide-react";
+import { BellOff, ExternalLink, RefreshCw, XCircle } from "lucide-react";
 import * as api from "../api";
 
 const CHANNEL_KEY = "excalidash-update-channel";
-const DISMISSED_VERSION_KEY = "excalidash-update-dismissed-version";
+const DISMISSED_VERSION_KEY = "excalidash-update-ignored-version";
 const LAST_CHECK_KEY = "excalidash-update-last-check";
+const UPDATE_INFO_KEY = "excalidash-update-info";
+const CLOSED_VERSION_KEY = "excalidash-update-banner-closed-version";
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 const safeGetItem = (key: string): string | null => {
@@ -29,6 +31,28 @@ const safeSetItem = (key: string, value: string): void => {
   }
 };
 
+const safeGetSessionItem = (key: string): string | null => {
+  try {
+    if (typeof window === "undefined") return null;
+    const storage = window.sessionStorage;
+    if (!storage || typeof storage.getItem !== "function") return null;
+    return storage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeSetSessionItem = (key: string, value: string): void => {
+  try {
+    if (typeof window === "undefined") return;
+    const storage = window.sessionStorage;
+    if (!storage || typeof storage.setItem !== "function") return;
+    storage.setItem(key, value);
+  } catch {
+    // ignore
+  }
+};
+
 const readChannel = (): api.UpdateChannel => {
   const raw = safeGetItem(CHANNEL_KEY);
   return raw === "prerelease" ? "prerelease" : "stable";
@@ -39,6 +63,8 @@ const writeChannel = (channel: api.UpdateChannel) => {
 };
 
 const lastCheckStorageKey = (channel: api.UpdateChannel) => `${LAST_CHECK_KEY}:${channel}`;
+const updateInfoStorageKey = (channel: api.UpdateChannel) => `${UPDATE_INFO_KEY}:${channel}`;
+const closedVersionStorageKey = (channel: api.UpdateChannel) => `${CLOSED_VERSION_KEY}:${channel}`;
 
 const shouldCheckNow = (channel: api.UpdateChannel): boolean => {
   const raw = safeGetItem(lastCheckStorageKey(channel));
@@ -51,12 +77,29 @@ const markCheckedNow = (channel: api.UpdateChannel) => {
   safeSetItem(lastCheckStorageKey(channel), String(Date.now()));
 };
 
+const readCachedInfo = (channel: api.UpdateChannel): api.UpdateInfo | null => {
+  const raw = safeGetItem(updateInfoStorageKey(channel));
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as api.UpdateInfo;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedInfo = (channel: api.UpdateChannel, info: api.UpdateInfo) => {
+  safeSetItem(updateInfoStorageKey(channel), JSON.stringify(info));
+};
+
 export const UpdateBanner: React.FC = () => {
   const [channel, setChannel] = useState<api.UpdateChannel>(() => readChannel());
-  const [info, setInfo] = useState<api.UpdateInfo | null>(null);
+  const [info, setInfo] = useState<api.UpdateInfo | null>(() => readCachedInfo(readChannel()));
   const [loading, setLoading] = useState(false);
-  const [dismissedVersion, setDismissedVersion] = useState<string | null>(() =>
+  const [ignoredVersion, setIgnoredVersion] = useState<string | null>(() =>
     safeGetItem(DISMISSED_VERSION_KEY)
+  );
+  const [closedVersion, setClosedVersion] = useState<string | null>(() =>
+    safeGetSessionItem(closedVersionStorageKey(readChannel()))
   );
 
   const load = async (force: boolean) => {
@@ -65,6 +108,7 @@ export const UpdateBanner: React.FC = () => {
     try {
       const data = await api.getUpdateInfo(channel);
       setInfo(data);
+      writeCachedInfo(channel, data);
       markCheckedNow(channel);
     } catch {
       // Non-blocking: silently skip and retry later.
@@ -75,19 +119,27 @@ export const UpdateBanner: React.FC = () => {
   };
 
   useEffect(() => {
+    // Always hydrate from cache first so the banner persists across refreshes.
+    setInfo(readCachedInfo(channel));
+    setClosedVersion(safeGetSessionItem(closedVersionStorageKey(channel)));
     void load(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channel]);
 
   useEffect(() => {
-    setDismissedVersion(safeGetItem(DISMISSED_VERSION_KEY));
+    setIgnoredVersion(safeGetItem(DISMISSED_VERSION_KEY));
   }, [info?.latestVersion]);
+
+  useEffect(() => {
+    setClosedVersion(safeGetSessionItem(closedVersionStorageKey(channel)));
+  }, [channel, info?.latestVersion]);
 
   const updateAvailable =
     info?.outboundEnabled &&
     info?.isUpdateAvailable === true &&
     Boolean(info.latestVersion) &&
-    info.latestVersion !== dismissedVersion;
+    info.latestVersion !== ignoredVersion &&
+    info.latestVersion !== closedVersion;
 
   if (!updateAvailable) return null;
 
@@ -139,16 +191,31 @@ export const UpdateBanner: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              if (info?.latestVersion) {
-                safeSetItem(DISMISSED_VERSION_KEY, info.latestVersion);
-                setDismissedVersion(info.latestVersion);
-              }
+              const latest = info?.latestVersion;
+              if (!latest) return;
+              safeSetSessionItem(closedVersionStorageKey(channel), latest);
+              setClosedVersion(latest);
             }}
             className="h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg bg-white/70 dark:bg-neutral-900/60 border border-emerald-200 dark:border-emerald-800/50 text-[11px] font-black uppercase tracking-wider text-emerald-900 dark:text-emerald-100 hover:bg-white dark:hover:bg-neutral-900 transition-colors"
-            title="Dismiss this version"
+            title="Close (will reappear later)"
           >
             <XCircle size={14} strokeWidth={2.5} />
-            <span className="hidden sm:inline">Dismiss</span>
+            <span className="hidden sm:inline">Close</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const latest = info?.latestVersion;
+              if (!latest) return;
+              safeSetItem(DISMISSED_VERSION_KEY, latest);
+              setIgnoredVersion(latest);
+            }}
+            className="h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg bg-emerald-100/70 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 text-[11px] font-black uppercase tracking-wider text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+            title="Ignore this version"
+          >
+            <BellOff size={14} strokeWidth={2.5} />
+            <span className="hidden sm:inline">Ignore</span>
           </button>
 
           <button
