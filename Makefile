@@ -199,12 +199,19 @@ version-bump: ## Interactive version bump
 		sed -i "s/\"version\": \".*\"/\"version\": \"$$NEW_VERSION\"/" backend/package.json; \
 	echo "Version bumped to $$NEW_VERSION"
 
-changelog: ## Reset RELEASE.md from template and open it for editing
-	@echo "Generating fresh RELEASE.md..."
-	@if [ "$(PRERELEASE)" = "1" ]; then \
-		node scripts/reset-release-notes.cjs --prerelease; \
+changelog: ## Prepare RELEASE.md from template or keep existing content, then open it
+	@echo "Prepare release notes for editing?"
+	@read -r CHOICE; \
+	CHOICE_LOWER=$$(printf '%s' "$$CHOICE" | tr '[:upper:]' '[:lower:]'); \
+	if [ "$$CHOICE_LOWER" = "y" ] || [ "$$CHOICE_LOWER" = "yes" ]; then \
+		echo "Generating fresh RELEASE.md..."; \
+		if [ "$(PRERELEASE)" = "1" ]; then \
+			node scripts/reset-release-notes.cjs --prerelease; \
+		else \
+			node scripts/reset-release-notes.cjs; \
+		fi; \
 	else \
-		node scripts/reset-release-notes.cjs; \
+		echo "Keeping current RELEASE.md."; \
 	fi
 	@$(MAKE) changelog-open
 
