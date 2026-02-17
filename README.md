@@ -39,6 +39,10 @@ A self-hosted dashboard and organizer for [Excalidraw](https://github.com/excali
 <details>
 <summary>(Optional) Multi User Authentication, OIDC Support</summary>
 
+### Sign in with OIDC
+
+![](readme-assets/signInOIDC.png)
+
 ### Migration from v0.3
 
 ![](readme-assets/migrationScreen.png)
