@@ -464,6 +464,9 @@ export const Editor: React.FC = () => {
       });
     });
 
+    const hasNonEmptyArray = (value: unknown): value is any[] =>
+      Array.isArray(value) && value.length > 0;
+
     const flushRemoteUpdates = () => {
       remoteFlushScheduledRef.current = false;
       remoteFlushRafIdRef.current = null;
@@ -471,9 +474,8 @@ export const Editor: React.FC = () => {
 
       const hasPendingElements = pendingRemoteElementsRef.current.size > 0;
       const hasPendingFiles = Object.keys(pendingRemoteFilesRef.current || {}).length > 0;
-      const hasPendingOrder =
-        Array.isArray(pendingRemoteElementOrderRef.current) &&
-        pendingRemoteElementOrderRef.current.length > 0;
+      const pendingOrderRaw = pendingRemoteElementOrderRef.current;
+      const hasPendingOrder = hasNonEmptyArray(pendingOrderRaw);
       if (!hasPendingElements && !hasPendingFiles && !hasPendingOrder) {
         return;
       }
@@ -487,7 +489,7 @@ export const Editor: React.FC = () => {
         const incomingFiles = pendingRemoteFilesRef.current || {};
         pendingRemoteFilesRef.current = {};
 
-        const elementOrder = pendingRemoteElementOrderRef.current;
+        const elementOrder = hasPendingOrder ? (pendingOrderRaw as string[]) : null;
         pendingRemoteElementOrderRef.current = null;
 
         const shouldUpdateFiles = Object.keys(incomingFiles).length > 0;
@@ -501,7 +503,7 @@ export const Editor: React.FC = () => {
 
         const shouldUpdateElements =
           pendingElements.length > 0 ||
-          (Array.isArray(elementOrder) && elementOrder.length > 0);
+          !!elementOrder;
 
         if (shouldUpdateElements) {
           const localElements = excalidrawAPI.current.getSceneElementsIncludingDeleted();
@@ -510,7 +512,7 @@ export const Editor: React.FC = () => {
           // The previous behavior could make a single element appear "stuck" (all other elements sync,
           // but the selected one never applies remote updates).
           let mergedElements = reconcileElements(localElements, pendingElements);
-          if (Array.isArray(elementOrder) && elementOrder.length > 0) {
+          if (elementOrder) {
             mergedElements = applyElementOrder(mergedElements, elementOrder);
             // Avoid immediately rebroadcasting the remote reorder back to the room.
             lastSyncedElementOrderSigRef.current = computeElementOrderSig(mergedElements);
@@ -542,9 +544,7 @@ export const Editor: React.FC = () => {
       // If more data arrived while we were flushing, schedule another frame.
       const moreElements = pendingRemoteElementsRef.current.size > 0;
       const moreFiles = Object.keys(pendingRemoteFilesRef.current || {}).length > 0;
-      const moreOrder =
-        Array.isArray(pendingRemoteElementOrderRef.current) &&
-        pendingRemoteElementOrderRef.current.length > 0;
+      const moreOrder = hasNonEmptyArray(pendingRemoteElementOrderRef.current);
       if (moreElements || moreFiles || moreOrder) {
         if (!remoteFlushScheduledRef.current) {
           remoteFlushScheduledRef.current = true;
