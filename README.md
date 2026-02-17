@@ -267,21 +267,24 @@ Notes:
 
 ### Local OIDC Test Stack (Docker + Keycloak)
 
-For local end-to-end OIDC testing, this repo includes:
+For local end-to-end OIDC testing, you can run ExcaliDash alongside a local Keycloak.
 
-| Item             | Value                                      |
+This repo intentionally does **not** ship the Keycloak compose override / realm seed on `main` to avoid committing credentials.
+If you want this workflow, create the following files locally (they are `.gitignore`'d):
+
+| Item             | Suggested path                             |
 | ---------------- | ------------------------------------------ |
 | Compose override | `docker-compose.oidc.local.yml`            |
 | Seed file        | `ops/keycloak/realm-excalidash-local.json` |
 
-Run:
+Typical run command:
 
 ```bash
 # From repo root
 docker compose -f docker-compose.oidc.local.yml up -d --build
 ```
 
-This local stack defaults to `AUTH_MODE=hybrid`.
+This local stack typically defaults to `AUTH_MODE=hybrid`.
 To force OIDC-only mode for testing:
 
 ```bash
