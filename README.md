@@ -8,30 +8,24 @@
 
 A self-hosted dashboard and organizer for [Excalidraw](https://github.com/excalidraw/excalidraw) with live collaboration features.
 
-## Screenshots
-
-![](readme-assets/dashboard.png)
-
 ![](readme-assets/demo.gif)
 
 ## Table of Contents
 
-| Section                  | Link                        |
-| ------------------------ | --------------------------- |
-| Screenshots              | [Screenshots](#screenshots) |
-| Features                 | [Features](#features)       |
-| Upgrading                | [Upgrading](#upgrading)     |
-| Installation: Quickstart | [Quickstart](#quickstart)   |
-| Installation: Advanced   | [Advanced](#advanced)       |
-| Development              | [Development](#development) |
-| Credits                  | [Credits](#credits)         |
+- [Features](#features)
+- [Upgrading](#upgrading)
+- [Installation](#installation)
+  - [Quickstart](#quickstart)
+  - [Advanced](#advanced)
+- [Development](#development)
+- [Credits](#credits)
 
 ## Features
 
 <details>
 <summary>Persistent storage for all your drawings</summary>
 
-![](readme-assets/dashboardLight.png)
+![](readme-assets/dashboard.png)
 
 </details>
 
@@ -43,23 +37,42 @@ A self-hosted dashboard and organizer for [Excalidraw](https://github.com/excali
 </details>
 
 <details>
+<summary>(Optional) Multi User Authentication, OIDC Support</summary>
+
+### Migration from v0.3
+
+![](readme-assets/migrationScreen.png)
+
+### Admin Bootstrap
+
+![](readme-assets/adminBootstrap.png)
+
+### Admin Dashboard
+
+![](readme-assets/adminDashboard.png)
+
+</details>
+
+<details>
 <summary>Search your drawings</summary>
 
-![](readme-assets/searchPage.png)
+![](readme-assets/search.gif)
 
 </details>
 
 <details>
 <summary>Drag and drop drawings into collections</summary>
 
-![](readme-assets/collectionsPage.png)
+![](readme-assets/collections.gif)
 
 </details>
 
 <details>
-<summary>Export/import your drawings and databases for backup</summary>
+<summary>Export/import your drawings for backup</summary>
 
-![](readme-assets/settingsPage.png)
+### Excalidash uses a non-proprietary archival format that stores your drawings in plain .excalidraw format
+
+![](readme-assets/backupsImport.gif)
 
 </details>
 
@@ -192,17 +205,17 @@ ExcaliDash currently supports running **one backend instance**.
 
 Why:
 
-| Area | Limitation |
-| --- | --- |
-| Database | The backend uses a local **SQLite file** database by default (`DATABASE_URL=file:/.../dev.db`). Running multiple backend replicas either creates split-brain state (separate DB files/volumes) or requires sharing a single SQLite file across hosts, which is not a reliable deployment pattern. |
-| Collaboration | Real-time presence state is tracked **in-memory** in the backend process, so multiple replicas will fragment presence/collaboration unless a shared Socket.IO adapter is added. |
+| Area          | Limitation                                                                                                                                                                                                                                                                                        |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Database      | The backend uses a local **SQLite file** database by default (`DATABASE_URL=file:/.../dev.db`). Running multiple backend replicas either creates split-brain state (separate DB files/volumes) or requires sharing a single SQLite file across hosts, which is not a reliable deployment pattern. |
+| Collaboration | Real-time presence state is tracked **in-memory** in the backend process, so multiple replicas will fragment presence/collaboration unless a shared Socket.IO adapter is added.                                                                                                                   |
 
 Recommended deployment pattern:
 
-| Component | Guidance |
-| --- | --- |
-| Backend | 1 replica, persistent volume, regular backups. |
-| Frontend | 1 replica is simplest; scaling is generally fine since it is stateless. |
+| Component | Guidance                                                                |
+| --------- | ----------------------------------------------------------------------- |
+| Backend   | 1 replica, persistent volume, regular backups.                          |
+| Frontend  | 1 replica is simplest; scaling is generally fine since it is stateless. |
 
 </details>
 
@@ -300,10 +313,10 @@ Then open:
 
 OIDC login test users (realm: `excalidash`):
 
-| User | Notes |
-| --- | --- |
+| User                | Notes                                                                 |
+| ------------------- | --------------------------------------------------------------------- |
 | `alice@example.com` | Created by the seed realm; set an initial password in Keycloak admin. |
-| `bob@example.com` | Created by the seed realm; set an initial password in Keycloak admin. |
+| `bob@example.com`   | Created by the seed realm; set an initial password in Keycloak admin. |
 
 Stop/clean up:
 
@@ -321,14 +334,14 @@ docker compose -f docker-compose.oidc.local.yml down -v
 
 Base values are documented in `backend/.env.example`. Common ones to care about:
 
-| Variable       | Default / Example         | Description                                                                     |
-| -------------- | ------------------------- | ------------------------------------------------------------------------------- |
-| `DATABASE_URL` | `file:/app/prisma/dev.db` | SQLite file or external DB URL.                                                 |
-| `FRONTEND_URL` | `http://localhost:6767`   | Allowed frontend origin(s), comma-separated for multiple entries.               |
-| `TRUST_PROXY`  | `false`                   | `false`, `true`, or hop count (for example `1`).                                |
+| Variable       | Default / Example         | Description                                                                         |
+| -------------- | ------------------------- | ----------------------------------------------------------------------------------- |
+| `DATABASE_URL` | `file:/app/prisma/dev.db` | SQLite file or external DB URL.                                                     |
+| `FRONTEND_URL` | `http://localhost:6767`   | Allowed frontend origin(s), comma-separated for multiple entries.                   |
+| `TRUST_PROXY`  | `false`                   | `false`, `true`, or hop count (for example `1`).                                    |
 | `JWT_SECRET`   | `change-this-secret...`   | Recommended in production so sessions remain stable across restarts and migrations. |
-| `CSRF_SECRET`  | `change-this-secret`      | Recommended in production so CSRF validation remains stable across restarts. |
-| `AUTH_MODE`    | `local`                   | `local`, `hybrid`, `oidc_enforced`.                                             |
+| `CSRF_SECRET`  | `change-this-secret`      | Recommended in production so CSRF validation remains stable across restarts.        |
+| `AUTH_MODE`    | `local`                   | `local`, `hybrid`, `oidc_enforced`.                                                 |
 
 </details>
 
