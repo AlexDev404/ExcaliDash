@@ -161,6 +161,9 @@ export const createAuthRouter = (deps: CreateAuthRouterDeps): express.Router => 
       legacyHeaders: false,
       validate: {
         trustProxy: false,
+        // When running behind a proxy that sets X-Forwarded-For (e.g. nginx),
+        // express-rate-limit can throw if Express trust proxy is disabled.
+        xForwardedForHeader: false,
       },
       store,
       keyGenerator: (req) => {
@@ -249,6 +252,7 @@ export const createAuthRouter = (deps: CreateAuthRouterDeps): express.Router => 
     legacyHeaders: false,
     validate: {
       trustProxy: false,
+      xForwardedForHeader: false,
     },
   });
 

@@ -14,6 +14,10 @@ vi.mock("./UploadStatus", () => ({
   UploadStatus: () => <div data-testid="upload-status">upload-status</div>,
 }));
 
+vi.mock("./ImpersonationBanner", () => ({
+  ImpersonationBanner: () => null,
+}));
+
 import { Layout } from "./Layout";
 
 describe("Layout", () => {
