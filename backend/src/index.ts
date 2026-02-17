@@ -27,6 +27,7 @@ import authRouter from "./auth";
 import { logAuditEvent } from "./utils/audit";
 import { registerDashboardRoutes } from "./routes/dashboard";
 import { registerImportExportRoutes } from "./routes/importExport";
+import { registerSystemRoutes } from "./routes/system";
 import { prisma } from "./db/prisma";
 import { createDrawingsCacheStore } from "./server/drawingsCache";
 import { registerCsrfProtection } from "./server/csrf";
@@ -605,6 +606,11 @@ if (enableOnboardingGate) {
     }
   });
 }
+
+registerSystemRoutes(app, {
+  asyncHandler,
+  getBackendVersion,
+});
 
 registerDashboardRoutes(app, {
   prisma,

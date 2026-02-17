@@ -67,6 +67,12 @@ A self-hosted dashboard and organizer for [Excalidraw](https://github.com/excali
 
 See [release notes](https://github.com/ZimengXiong/ExcaliDash/releases) for a specific release.
 
+ExcaliDash includes an in-app update notifier that checks GitHub Releases. If your deployment must not make outbound network calls, disable it on the backend:
+
+```bash
+UPDATE_CHECK_OUTBOUND=false
+```
+
 # Installation
 
 > [!CAUTION]
