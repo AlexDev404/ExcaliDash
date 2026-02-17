@@ -116,8 +116,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         const storedUser = localStorage.getItem(USER_KEY);
         if (storedUser) {
-          const userData = JSON.parse(storedUser);
-          setUser(userData);
+          try {
+            const userData = JSON.parse(storedUser);
+            setUser(userData);
+          } catch {
+            // Corrupted localStorage should not block auth bootstrap via /auth/me.
+            localStorage.removeItem(USER_KEY);
+            setUser(null);
+          }
         }
 
         try {

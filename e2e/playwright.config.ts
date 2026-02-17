@@ -17,6 +17,8 @@ const BACKEND_URL = process.env.API_URL || `http://localhost:${BACKEND_PORT}`;
 export default defineConfig({
   testDir: "./tests",
 
+  globalSetup: "./global-setup",
+
   fullyParallel: true,
 
   forbidOnly: !!process.env.CI,

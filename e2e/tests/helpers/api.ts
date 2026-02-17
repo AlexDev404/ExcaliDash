@@ -12,20 +12,12 @@ type CsrfTokenResponse = {
 type CsrfInfo = {
   token: string;
   headerName: string;
-  cookieHeader: string;
 };
 
-let sharedCsrfInfo: CsrfInfo | null = null;
-let sharedCsrfFetch: Promise<CsrfInfo> | null = null;
-
-const extractCookieHeader = (response: { headersArray: () => Array<{ name: string; value: string }> }): string => {
-  const cookiePairs = response
-    .headersArray()
-    .filter((h) => h.name.toLowerCase() === "set-cookie")
-    .map((h) => h.value.split(";")[0] || "")
-    .filter((v) => v.length > 0);
-  return cookiePairs.join("; ");
-};
+// Cache CSRF tokens per Playwright request context so parallel tests don't race
+// and we don't accidentally mix cookie jars across contexts.
+const csrfInfoByRequest = new WeakMap<APIRequestContext, CsrfInfo>();
+const csrfFetchByRequest = new WeakMap<APIRequestContext, Promise<CsrfInfo>>();
 
 const fetchCsrfInfo = async (request: APIRequestContext): Promise<CsrfInfo> => {
   const response = await request.get(`${API_URL}/csrf-token`);
@@ -46,50 +38,50 @@ const fetchCsrfInfo = async (request: APIRequestContext): Promise<CsrfInfo> => {
       ? data.header
       : "x-csrf-token";
 
-  const cookieHeader = extractCookieHeader(response);
-  if (!cookieHeader) {
-    throw new Error("Failed to fetch CSRF token: missing csrf client cookie");
-  }
-
-  return { token: data.token, headerName, cookieHeader };
+  return { token: data.token, headerName };
 };
 
 const getCsrfInfo = async (request: APIRequestContext): Promise<CsrfInfo> => {
-  if (sharedCsrfInfo) return sharedCsrfInfo;
-  if (sharedCsrfFetch) return sharedCsrfFetch;
+  const cached = csrfInfoByRequest.get(request);
+  if (cached) return cached;
 
-  sharedCsrfFetch = fetchCsrfInfo(request)
+  const inFlight = csrfFetchByRequest.get(request);
+  if (inFlight) return inFlight;
+
+  const promise = fetchCsrfInfo(request)
     .then((info) => {
-      sharedCsrfInfo = info;
+      csrfInfoByRequest.set(request, info);
       return info;
     })
     .finally(() => {
-      sharedCsrfFetch = null;
+      csrfFetchByRequest.delete(request);
     });
 
-  return sharedCsrfFetch;
+  csrfFetchByRequest.set(request, promise);
+  return promise;
 };
 
 const refreshCsrfInfo = async (request: APIRequestContext): Promise<CsrfInfo> => {
-  sharedCsrfFetch = fetchCsrfInfo(request)
+  const promise = fetchCsrfInfo(request)
     .then((info) => {
-      sharedCsrfInfo = info;
+      csrfInfoByRequest.set(request, info);
       return info;
     })
     .finally(() => {
-      sharedCsrfFetch = null;
+      csrfFetchByRequest.delete(request);
     });
-  return sharedCsrfFetch;
+
+  csrfFetchByRequest.set(request, promise);
+  return promise;
 };
 
 export async function getCsrfHeaders(
   request: APIRequestContext
 ): Promise<Record<string, string>> {
   const info = await getCsrfInfo(request);
-  return {
-    [info.headerName]: info.token,
-    Cookie: info.cookieHeader,
-  };
+  // Do not set Cookie manually; let Playwright manage the cookie jar so auth and
+  // csrf cookies can coexist.
+  return { [info.headerName]: info.token };
 }
 
 const withCsrfHeaders = async (

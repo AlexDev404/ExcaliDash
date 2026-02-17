@@ -5,7 +5,7 @@
  * and gracefully degrades when disabled or when tables don't exist.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { getTestPrisma, setupTestDb, initTestDb, createTestUser } from "../../__tests__/testUtils";
 import {
   logAuditEvent,
@@ -95,11 +95,31 @@ describe("Audit Logging", () => {
     });
 
     it("should gracefully handle when feature is disabled", async () => {
-      const auditData: AuditLogData = {
-        action: "should_not_log_disabled",
-      };
+      const originalEnable = process.env.ENABLE_AUDIT_LOGGING;
+      process.env.ENABLE_AUDIT_LOGGING = "false";
+      try {
+        // Reset module cache so config is re-evaluated with ENABLE_AUDIT_LOGGING=false.
+        vi.resetModules();
+        const audit = await import("../audit");
+        audit.setAuditPrismaProvider(() => prisma);
 
-      await expect(logAuditEvent(auditData)).resolves.not.toThrow();
+        await expect(audit.logAuditEvent({ action: "should_not_log_disabled" })).resolves.not.toThrow();
+        const logs = await prisma.auditLog.findMany({
+          where: { action: "should_not_log_disabled" },
+        });
+        expect(logs.length).toBe(0);
+      } finally {
+        if (typeof originalEnable === "string") {
+          process.env.ENABLE_AUDIT_LOGGING = originalEnable;
+        } else {
+          delete process.env.ENABLE_AUDIT_LOGGING;
+        }
+        // Restore module state for subsequent tests in this file.
+        vi.resetModules();
+        const audit = await import("../audit");
+        audit.setAuditPrismaProvider(() => prisma);
+        process.env.ENABLE_AUDIT_LOGGING = "true";
+      }
     });
 
     it("should serialize details object to JSON", async () => {

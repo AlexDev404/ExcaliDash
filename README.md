@@ -1,4 +1,4 @@
-<img src="logoExcaliDash.png" alt="ExcaliDash Logo" width="80" height="88">
+<img src="readme-assets/logoExcaliDash.png" alt="ExcaliDash Logo" width="80" height="88">
 
 # ExcaliDash
 
@@ -10,9 +10,9 @@ A self-hosted dashboard and organizer for [Excalidraw](https://github.com/excali
 
 ## Screenshots
 
-![](dashboard.png)
+![](readme-assets/dashboard.png)
 
-![](demo.gif)
+![](readme-assets/demo.gif)
 
 ## Table of Contents
 
@@ -31,35 +31,35 @@ A self-hosted dashboard and organizer for [Excalidraw](https://github.com/excali
 <details>
 <summary>Persistent storage for all your drawings</summary>
 
-![](dashboardLight.png)
+![](readme-assets/dashboardLight.png)
 
 </details>
 
 <details>
 <summary>Real time collaboration</summary>
 
-![](collabDemo.gif)
+![](readme-assets/collabDemo.gif)
 
 </details>
 
 <details>
 <summary>Search your drawings</summary>
 
-![](searchPage.png)
+![](readme-assets/searchPage.png)
 
 </details>
 
 <details>
 <summary>Drag and drop drawings into collections</summary>
 
-![](collectionsPage.png)
+![](readme-assets/collectionsPage.png)
 
 </details>
 
 <details>
 <summary>Export/import your drawings and databases for backup</summary>
 
-![](settingsPage.png)
+![](readme-assets/settingsPage.png)
 
 </details>
 
