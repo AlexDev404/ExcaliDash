@@ -1,4 +1,4 @@
-# ExcaliDash v0.4.24-dev
+# ExcaliDash v0.4.25-dev
 
 Release date: 2026-02-17
 
@@ -27,9 +27,9 @@ Edit `docker-compose.prod.yml` and pin the release tags:
 ```yaml
 services:
   backend:
-    image: zimengxiong/excalidash-backend:v0.4.24-dev
+    image: zimengxiong/excalidash-backend:v0.4.25-dev
   frontend:
-    image: zimengxiong/excalidash-frontend:v0.4.24-dev
+    image: zimengxiong/excalidash-frontend:v0.4.25-dev
 ```
 
 Example:
@@ -40,4 +40,4 @@ docker compose -f docker-compose.prod.yml up -d
 
 </details>
 
-Added scoped permissions and global access settings. Improved performance in collaboration
+add sharing options between users, make sure ordering is transmitted in collaboration
