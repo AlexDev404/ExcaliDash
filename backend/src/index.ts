@@ -325,6 +325,9 @@ const generalRateLimiter = rateLimit({
   // correct client IP handling and rely on deployment-level network controls.
   validate: {
     trustProxy: false,
+    // In Docker + nginx (frontend proxy), X-Forwarded-For is commonly present even when TRUST_PROXY=false.
+    // Disable this validation to avoid throwing and breaking requests in that deployment mode.
+    xForwardedForHeader: false,
   },
 });
 

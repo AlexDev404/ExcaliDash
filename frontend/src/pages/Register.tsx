@@ -24,6 +24,12 @@ export const Register: React.FC = () => {
   } = useAuth();
   const navigate = useNavigate();
 
+  const isProdBuild = import.meta.env.PROD;
+  const strongPasswordPattern =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,100}$/;
+  const strongPasswordMessage =
+    'Password must be at least 12 characters and include upper, lower, number, and symbol';
+
   useEffect(() => {
     if (authLoading || authEnabled === null) return;
     if (authOnboardingRequired) {
@@ -47,7 +53,12 @@ export const Register: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    if (password.length < 8) {
+    if (isProdBuild) {
+      if (!strongPasswordPattern.test(password)) {
+        setError(strongPasswordMessage);
+        return;
+      }
+    } else if (password.length < 8) {
       setError('Password must be at least 8 characters long');
       return;
     }
@@ -174,9 +185,14 @@ export const Register: React.FC = () => {
                 type="password"
                 autoComplete="new-password"
                 required
-                minLength={8}
+                minLength={isProdBuild ? 12 : 8}
+                pattern={
+                  isProdBuild
+                    ? '(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{12,100}'
+                    : undefined
+                }
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white dark:bg-gray-800 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Password (min 8 characters)"
+                placeholder={isProdBuild ? 'Password (12+ w/ complexity)' : 'Password (min 8 characters)'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />

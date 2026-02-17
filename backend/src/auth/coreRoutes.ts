@@ -173,9 +173,22 @@ export const registerCoreRoutes = (deps: RegisterCoreRoutesDeps) => {
       const parsed = registerSchema.safeParse(req.body);
 
       if (!parsed.success) {
+        const flattened = parsed.error.flatten();
+        const fieldMessages = Object.values(flattened.fieldErrors).flatMap(
+          (messages) => messages ?? []
+        );
+        const formMessages = flattened.formErrors ?? [];
+        const messages = [...formMessages, ...fieldMessages].filter(
+          (message): message is string => typeof message === "string" && message.trim().length > 0
+        );
         return res.status(400).json({
           error: "Validation error",
-          message: "Invalid registration data",
+          // Surface the first validation message for better UX (e.g., password policy in production).
+          message: messages[0] || "Invalid registration data",
+          details: {
+            formErrors: flattened.formErrors,
+            fieldErrors: flattened.fieldErrors,
+          },
         });
       }
 
