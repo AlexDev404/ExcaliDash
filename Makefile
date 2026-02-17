@@ -200,8 +200,7 @@ version-bump: ## Interactive version bump
 	echo "Version bumped to $$NEW_VERSION"
 
 changelog: ## Prepare RELEASE.md from template or keep existing content, then open it
-	@echo "Prepare release notes for editing?"
-	@read -r CHOICE; \
+	@read -p "Prepare release notes for editing? [y/N]: " CHOICE; \
 	CHOICE_LOWER=$$(printf '%s' "$$CHOICE" | tr '[:upper:]' '[:lower:]'); \
 	if [ "$$CHOICE_LOWER" = "y" ] || [ "$$CHOICE_LOWER" = "yes" ]; then \
 		echo "Generating fresh RELEASE.md..."; \
