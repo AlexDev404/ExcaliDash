@@ -148,6 +148,7 @@ export const Editor: React.FC = () => {
   const patchedAddFilesApisRef = useRef<WeakSet<object>>(new WeakSet());
   const suspiciousBlankLoadRef = useRef(false);
   const hasSceneChangesSinceLoadRef = useRef(false);
+  const lastLocalChangeAtRef = useRef<number>(0);
   const pendingRemoteElementsRef = useRef<Map<string, any>>(new Map());
   const pendingRemoteFilesRef = useRef<Record<string, any>>({});
   const pendingRemoteElementOrderRef = useRef<string[] | null>(null);
@@ -618,6 +619,14 @@ export const Editor: React.FC = () => {
       socket.off('cursor-move');
       socket.off('element-update');
       socket.disconnect();
+      if (remoteFlushRafIdRef.current !== null) {
+        cancelAnimationFrame(remoteFlushRafIdRef.current);
+        remoteFlushRafIdRef.current = null;
+      }
+      remoteFlushScheduledRef.current = false;
+      pendingRemoteElementsRef.current.clear();
+      pendingRemoteFilesRef.current = {};
+      pendingRemoteElementOrderRef.current = null;
       cancelAnimationFrame(animationFrameId.current);
     };
   }, [
@@ -1000,10 +1009,12 @@ export const Editor: React.FC = () => {
       if (isUnmounting.current) return;
       if (isSyncing.current) return;
 
+      const expectedChangeAt = lastLocalChangeAtRef.current;
       const run = () => {
         if (!savePreviewRef.current) return;
         if (isUnmounting.current) return;
         if (isSyncing.current) return;
+        if (lastLocalChangeAtRef.current !== expectedChangeAt) return;
 
         const elements = latestElementsRef.current;
         const appState = latestAppStateRef.current;
@@ -1073,6 +1084,7 @@ export const Editor: React.FC = () => {
 
       if (changes.length > 0 || shouldSyncFiles || shouldSyncOrder) {
         hasSceneChangesSinceLoadRef.current = true;
+        lastLocalChangeAtRef.current = Date.now();
         socketRef.current.emit('element-update', {
           drawingId: id,
           elements: changes.length > 0 ? changes : [],
@@ -1105,20 +1117,28 @@ export const Editor: React.FC = () => {
   useEffect(() => {
     isBootstrappingScene.current = true;
     hasHydratedInitialScene.current = false;
-	    elementVersionMap.current.clear();
-	    saveQueueRef.current = Promise.resolve();
-	    latestElementsRef.current = [];
-	    initialSceneElementsRef.current = [];
-	    latestFilesRef.current = {};
-	    lastSyncedFilesRef.current = {};
-	    lastSyncedElementOrderSigRef.current = "";
-	    lastPersistedFilesRef.current = {};
-	    currentDrawingVersionRef.current = null;
-	    lastPersistedElementsRef.current = [];
-	    suspiciousBlankLoadRef.current = false;
-	    hasSceneChangesSinceLoadRef.current = false;
-	    excalidrawAPI.current = null;
-	    setIsReady(false);
+    elementVersionMap.current.clear();
+    saveQueueRef.current = Promise.resolve();
+    latestElementsRef.current = [];
+    initialSceneElementsRef.current = [];
+    latestFilesRef.current = {};
+    lastSyncedFilesRef.current = {};
+    lastSyncedElementOrderSigRef.current = "";
+    lastPersistedFilesRef.current = {};
+    pendingRemoteElementsRef.current.clear();
+    pendingRemoteFilesRef.current = {};
+    pendingRemoteElementOrderRef.current = null;
+    remoteFlushScheduledRef.current = false;
+    if (remoteFlushRafIdRef.current !== null) {
+      cancelAnimationFrame(remoteFlushRafIdRef.current);
+      remoteFlushRafIdRef.current = null;
+    }
+    currentDrawingVersionRef.current = null;
+    lastPersistedElementsRef.current = [];
+    suspiciousBlankLoadRef.current = false;
+    hasSceneChangesSinceLoadRef.current = false;
+    excalidrawAPI.current = null;
+    setIsReady(false);
     setIsSceneLoading(true);
     setLoadError(null);
     setInitialData(null);
@@ -1402,15 +1422,9 @@ export const Editor: React.FC = () => {
 
       if (didEmit && latestAppStateRef.current && debouncedSaveRef.current) {
         hasSceneChangesSinceLoadRef.current = true;
+        lastLocalChangeAtRef.current = Date.now();
         debouncedSaveRef.current(id, latestElementsRef.current, latestAppStateRef.current, nextFiles);
-        if (savePreviewRef.current) {
-          void savePreviewRef.current(
-            id,
-            latestElementsRef.current,
-            latestAppStateRef.current,
-            nextFiles
-          );
-        }
+        debouncedSavePreview(id);
       }
     }, 1000);
 
