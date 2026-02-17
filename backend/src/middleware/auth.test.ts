@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { describe, expect, it, vi } from "vitest";
 import { config } from "../config";
 import { createAuthMiddleware } from "./auth";
+import { BOOTSTRAP_USER_ID } from "../auth/authMode";
 
 const createRequest = (overrides?: Partial<Request>): Request =>
   ({
@@ -60,7 +61,7 @@ describe("auth middleware", () => {
     const { prisma, authModeService } = createDeps();
     authModeService.getAuthEnabled.mockResolvedValue(false);
     authModeService.getBootstrapActingUser.mockResolvedValue({
-      id: "bootstrap-admin",
+      id: BOOTSTRAP_USER_ID,
       username: null,
       email: "bootstrap@excalidash.local",
       name: "Bootstrap Admin",
@@ -77,7 +78,7 @@ describe("auth middleware", () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user).toMatchObject({
-      id: "bootstrap-admin",
+      id: BOOTSTRAP_USER_ID,
       role: "ADMIN",
     });
     expect(prisma.user.findUnique).not.toHaveBeenCalled();

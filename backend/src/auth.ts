@@ -9,7 +9,12 @@ import {
   optionalAuth as defaultOptionalAuth,
   authModeService as defaultAuthModeService,
 } from "./middleware/auth";
-import { getCsrfTokenHeader, sanitizeText, validateCsrfToken } from "./security";
+import {
+  getCsrfTokenHeader,
+  getOriginFromReferer,
+  sanitizeText,
+  validateCsrfToken,
+} from "./security";
 import rateLimit, { MemoryStore } from "express-rate-limit";
 import { registerAccountRoutes } from "./auth/accountRoutes";
 import { registerAdminRoutes } from "./auth/adminRoutes";
@@ -47,6 +52,44 @@ const isJwtPayload = (decoded: unknown): decoded is JwtPayload => {
     typeof payload.email === "string" &&
     (payload.type === "access" || payload.type === "refresh")
   );
+};
+
+const normalizeOrigins = (rawOrigins?: string): string[] => {
+  const fallback = "http://localhost:6767";
+  if (!rawOrigins || rawOrigins.trim().length === 0) {
+    return [fallback];
+  }
+
+  const ensureProtocol = (origin: string) =>
+    /^https?:\/\//i.test(origin) ? origin : `http://${origin}`;
+
+  const removeTrailingSlash = (origin: string) =>
+    origin.endsWith("/") ? origin.slice(0, -1) : origin;
+
+  const parsed = rawOrigins
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0)
+    .map(ensureProtocol)
+    .map(removeTrailingSlash);
+
+  return parsed.length > 0 ? parsed : [fallback];
+};
+
+const allowedOrigins = normalizeOrigins(config.frontendUrl);
+const isDev = config.nodeEnv !== "production";
+const isLocalDevOrigin = (origin: string): boolean => {
+  return (
+    /^http:\/\/localhost:\d+$/i.test(origin) ||
+    /^http:\/\/127\.0\.0\.1:\d+$/i.test(origin)
+  );
+};
+
+const isAllowedAuthOrigin = (origin?: string): boolean => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  if (isDev && isLocalDevOrigin(origin)) return true;
+  return false;
 };
 
 type CreateAuthRouterDeps = {
@@ -295,6 +338,30 @@ export const createAuthRouter = (deps: CreateAuthRouterDeps): express.Router => 
   };
 
   const requireCsrf = (req: Request, res: Response): boolean => {
+    const origin = req.headers["origin"];
+    const referer = req.headers["referer"];
+    const originValue = Array.isArray(origin) ? origin[0] : origin;
+    const refererValue = Array.isArray(referer) ? referer[0] : referer;
+
+    if (originValue) {
+      if (!isAllowedAuthOrigin(originValue)) {
+        res.status(403).json({
+          error: "CSRF origin mismatch",
+          message: "Origin not allowed",
+        });
+        return false;
+      }
+    } else if (refererValue) {
+      const refererOrigin = getOriginFromReferer(refererValue);
+      if (!refererOrigin || !isAllowedAuthOrigin(refererOrigin)) {
+        res.status(403).json({
+          error: "CSRF referer mismatch",
+          message: "Referer not allowed",
+        });
+        return false;
+      }
+    }
+
     const headerName = getCsrfTokenHeader();
     const tokenHeader = req.headers[headerName];
     const token = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;

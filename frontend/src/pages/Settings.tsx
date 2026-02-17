@@ -13,7 +13,7 @@ export const Settings: React.FC = () => {
     const [collections, setCollections] = useState<Collection[]>([]);
     const navigate = useNavigate();
     const { theme, toggleTheme } = useTheme();
-    const { authEnabled, user } = useAuth();
+    const { authEnabled, user, authMode } = useAuth();
 
     const [legacyDbImportConfirmation, setLegacyDbImportConfirmation] = useState<{
         isOpen: boolean;
@@ -54,6 +54,7 @@ export const Settings: React.FC = () => {
 
     const appVersion = import.meta.env.VITE_APP_VERSION || 'Unknown version';
     const buildLabel = import.meta.env.VITE_APP_BUILD_LABEL;
+    const isManagedAuthMode = authMode !== 'local';
 
     useEffect(() => {
         const fetchCollections = async () => {
@@ -309,7 +310,12 @@ export const Settings: React.FC = () => {
 
                 <button
                     onClick={confirmToggleAuthEnabled}
-                    disabled={authEnabled === null || authToggleLoading || (authEnabled === true && user?.role !== 'ADMIN')}
+                    disabled={
+                        isManagedAuthMode ||
+                        authEnabled === null ||
+                        authToggleLoading ||
+                        (authEnabled === true && user?.role !== 'ADMIN')
+                    }
                     className="flex flex-col items-center justify-center gap-3 sm:gap-4 p-6 sm:p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] disabled:hover:translate-y-0"
                 >
                     <div className="w-14 h-14 sm:w-16 sm:h-16 bg-slate-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-slate-200 dark:border-neutral-700 group-hover:border-slate-300 dark:group-hover:border-neutral-600 transition-colors">
@@ -320,13 +326,15 @@ export const Settings: React.FC = () => {
                             {authEnabled ? 'Authentication: On' : 'Authentication: Off'}
                         </h3>
                         <p className="text-sm text-slate-500 dark:text-neutral-400 font-medium">
-                            {authEnabled
-                                ? user?.role === 'ADMIN'
-                                    ? (authToggleLoading ? 'Disabling…' : 'Disable multi-user login')
-                                    : 'Only admins can disable'
-                                : authToggleLoading
-                                    ? 'Enabling…'
-                                    : 'Enable multi-user login'}
+                            {isManagedAuthMode
+                                ? `Authentication mode managed by AUTH_MODE=${authMode}`
+                                : authEnabled
+                                    ? user?.role === 'ADMIN'
+                                        ? (authToggleLoading ? 'Disabling…' : 'Disable multi-user login')
+                                        : 'Only admins can disable'
+                                    : authToggleLoading
+                                        ? 'Enabling…'
+                                        : 'Enable multi-user login'}
                         </p>
                     </div>
                 </button>

@@ -3,6 +3,7 @@ import { Server } from "socket.io";
 import { PrismaClient } from "../generated/client";
 import { AuthModeService } from "../auth/authMode";
 import { ACCESS_TOKEN_COOKIE_NAME, parseCookieHeader } from "../auth/cookies";
+import { BOOTSTRAP_USER_ID } from "../auth/authMode";
 
 interface User {
   id: string;
@@ -59,7 +60,7 @@ export const registerSocketHandlers = ({
   const getSocketAuthUserId = async (token?: string): Promise<string | null> => {
     const authEnabled = await authModeService.getAuthEnabled();
     if (!authEnabled) {
-      return "bootstrap-admin";
+      return BOOTSTRAP_USER_ID;
     }
 
     if (!token) return null;
@@ -144,7 +145,7 @@ export const registerSocketHandlers = ({
               : socket.id;
           let trustedName = toPresenceName(user?.name);
 
-          if (authenticatedUserId && authenticatedUserId !== "bootstrap-admin") {
+          if (authenticatedUserId && authenticatedUserId !== BOOTSTRAP_USER_ID) {
             const account = await prisma.user.findUnique({
               where: { id: authenticatedUserId },
               select: { id: true, name: true },
