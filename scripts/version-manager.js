@@ -8,30 +8,21 @@ const VERSION_FILE = path.join(ROOT_DIR, 'VERSION');
 const BACKEND_PACKAGE = path.join(ROOT_DIR, 'backend/package.json');
 const FRONTEND_PACKAGE = path.join(ROOT_DIR, 'frontend/package.json');
 
-const colors = {
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-};
-
-function log(message, color = 'reset') {
-  console.log(`${colors[color]}${message}${colors.reset}`);
+function log(message = '') {
+  console.log(message);
 }
 
 function showHelp() {
-  log('ExcaliDash Version Manager', 'blue');
+  log('ExcaliDash Version Manager');
   log('');
   log('Usage: node scripts/version-manager.js [COMMAND] [VERSION_TYPE]');
   log('');
   log('Commands:');
   log('  get                 Get current version');
   log('  set VERSION         Set specific version (e.g., 1.2.3)');
-  log('  patch               Bump patch version (1.0.0 → 1.0.1)');
-  log('  minor               Bump minor version (1.0.0 → 1.1.0)');
-  log('  major               Bump major version (1.0.0 → 2.0.0)');
+  log('  patch               Bump patch version (1.0.0 -> 1.0.1)');
+  log('  minor               Bump minor version (1.0.0 -> 1.1.0)');
+  log('  major               Bump major version (1.0.0 -> 2.0.0)');
   log('  sync                Sync version to all package.json files');
   log('  help                Show this help message');
   log('');
@@ -47,22 +38,22 @@ function getCurrentVersion() {
     if (fs.existsSync(VERSION_FILE)) {
       return fs.readFileSync(VERSION_FILE, 'utf8').trim();
     }
-    } catch (error) {
+  } catch (error) {
   }
   return '0.1.0'; // Default version if VERSION file doesn't exist
 }
 
 function setVersion(newVersion) {
   if (!/^\d+\.\d+\.\d+$/.test(newVersion)) {
-    log(`Error: Version must be in format X.Y.Z (e.g., 1.2.3)`, 'red');
+    log('Error: Version must be in format X.Y.Z (e.g., 1.2.3)');
     process.exit(1);
   }
 
   try {
     fs.writeFileSync(VERSION_FILE, newVersion);
-    log(`✓ Updated VERSION file to ${newVersion}`, 'green');
+    log(`Updated VERSION file to ${newVersion}`);
   } catch (error) {
-    log(`Error writing VERSION file: ${error.message}`, 'red');
+    log(`Error writing VERSION file: ${error.message}`);
     process.exit(1);
   }
 
@@ -91,7 +82,7 @@ function bumpVersion(bumpType) {
       newPatch = 0;
       break;
     default:
-      log(`Error: Invalid bump type. Use 'patch', 'minor', or 'major'`, 'red');
+      log("Error: Invalid bump type. Use 'patch', 'minor', or 'major'");
       process.exit(1);
   }
 
@@ -104,12 +95,12 @@ function updatePackageJson(packagePath, version) {
     const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
     packageJson.version = version;
     fs.writeFileSync(packagePath, JSON.stringify(packageJson, null, 2) + '\n');
-    log(`✓ Updated ${packagePath} to version ${version}`, 'green');
+    log(`Updated ${packagePath} to version ${version}`);
   } catch (error) {
     if (error.code === 'ENOENT') {
-      log(`⚠️  ${packagePath} not found`, 'yellow');
+      log(`WARN: ${packagePath} not found`);
     } else {
-      log(`Error updating ${packagePath}: ${error.message}`, 'red');
+      log(`Error updating ${packagePath}: ${error.message}`);
     }
   }
 }
@@ -129,7 +120,7 @@ switch (command) {
     break;
   case 'set':
     if (!arg) {
-      log('Error: Version required for "set" command', 'red');
+      log('Error: Version required for "set" command');
       showHelp();
       process.exit(1);
     }
@@ -149,7 +140,7 @@ switch (command) {
     showHelp();
     break;
   default:
-    log(`Error: Unknown command '${command}'`, 'red');
+    log(`Error: Unknown command '${command}'`);
     showHelp();
     process.exit(1);
 }
