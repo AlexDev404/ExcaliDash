@@ -216,18 +216,24 @@ export const registerOidcRoutes = (deps: RegisterOidcRoutesDeps) => {
   let oidcClientPromise: Promise<any> | null = null;
 
   const getOidcClient = async () => {
-    if (!config.oidc.issuerUrl || !config.oidc.clientId || !config.oidc.clientSecret) {
+    if (!config.oidc.issuerUrl || !config.oidc.clientId || !config.oidc.redirectUri) {
       throw new Error("OIDC is enabled but provider configuration is incomplete");
     }
     if (!oidcClientPromise) {
       oidcClientPromise = (async () => {
         const issuer = await Issuer.discover(config.oidc.issuerUrl as string);
-        return new issuer.Client({
+        const clientConfig: Record<string, unknown> = {
           client_id: config.oidc.clientId as string,
-          client_secret: config.oidc.clientSecret as string,
           redirect_uris: [config.oidc.redirectUri as string],
           response_types: ["code"],
-        });
+        };
+
+        // Allow public clients (no client_secret) for local dev / certain IdP setups.
+        if (config.oidc.clientSecret) {
+          clientConfig.client_secret = config.oidc.clientSecret;
+        }
+
+        return new issuer.Client(clientConfig as any);
       })();
     }
 

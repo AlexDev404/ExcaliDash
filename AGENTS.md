@@ -150,6 +150,7 @@ Understand runtime first, then touch code with local tests if requested.
 - `Makefile`: repo-wide orchestration commands.
 - `README.md`: user-facing installation and operational docs.
 - `VERSION`: version string used in builds.
+  - Local OIDC helper: `docker-compose.oidc.yml` + `oidc/keycloak/realm-excalidash.json` (Keycloak container + realm seed; no users/passwords committed)
 
 ## Quick setup: local development
 
@@ -235,7 +236,7 @@ Backend base variables:
 - `OIDC_PROVIDER_NAME` (default `OIDC`, optional unless OIDC mode enabled)
 - `OIDC_ISSUER_URL` (required in `hybrid`/`oidc_enforced`)
 - `OIDC_CLIENT_ID` (required in OIDC modes)
-- `OIDC_CLIENT_SECRET` (required in OIDC modes)
+- `OIDC_CLIENT_SECRET` (optional; required for confidential clients, omitted for public clients)
 - `OIDC_REDIRECT_URI` (required and HTTPS in production in OIDC modes)
 - `OIDC_SCOPES` (default `openid profile email`)
 - `OIDC_EMAIL_CLAIM` (default `email`)

@@ -144,7 +144,6 @@ const resolveOidcConfig = (authMode: AuthMode): OidcConfig => {
   const requiredWhenEnabled = {
     OIDC_ISSUER_URL: issuerUrl,
     OIDC_CLIENT_ID: clientId,
-    OIDC_CLIENT_SECRET: clientSecret,
     OIDC_REDIRECT_URI: redirectUri,
   };
 

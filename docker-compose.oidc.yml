@@ -5,17 +5,16 @@ services:
   #   docker compose -f docker-compose.oidc.yml up -d
   #
   # Keycloak Admin UI:
-  #   http://localhost:8080 (admin/admin)
+  #   http://localhost:8080/admin
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     container_name: excalidash-keycloak
     command: ["start-dev", "--import-realm"]
     environment:
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD in your shell or .env (do not commit it)}
     ports:
       - "8080:8080"
     volumes:
       - ./oidc/keycloak/realm-excalidash.json:/opt/keycloak/data/import/realm-excalidash.json:ro
     restart: unless-stopped
-

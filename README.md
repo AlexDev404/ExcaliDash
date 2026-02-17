@@ -265,7 +265,8 @@ backend:
     - OIDC_PROVIDER_NAME=Authentik
     - OIDC_ISSUER_URL=https://auth.example.com/application/o/excalidash/
     - OIDC_CLIENT_ID=your-client-id
-    - OIDC_CLIENT_SECRET=your-client-secret
+    # Optional for public clients; required for confidential clients
+    # - OIDC_CLIENT_SECRET=your-client-secret
     - OIDC_REDIRECT_URI=https://excalidash.example.com/api/auth/oidc/callback
     - OIDC_SCOPES=openid profile email
 ```
@@ -284,51 +285,42 @@ Notes:
 
 ### Local OIDC Test Stack (Docker + Keycloak)
 
-For local end-to-end OIDC testing, you can run ExcaliDash alongside a local Keycloak.
+This repo includes a Keycloak container + realm seed for local OIDC testing:
 
-This repo intentionally does **not** ship the Keycloak compose override / realm seed on `main` to avoid committing credentials.
-If you want this workflow, create the following files locally (they are `.gitignore`'d):
+- Compose file: `docker-compose.oidc.yml`
+- Realm import: `oidc/keycloak/realm-excalidash.json`
 
-| Item             | Suggested path                             |
-| ---------------- | ------------------------------------------ |
-| Compose override | `docker-compose.oidc.local.yml`            |
-| Seed file        | `ops/keycloak/realm-excalidash-local.json` |
+The realm seed intentionally contains **no users and no passwords**. You create a realm user and set a password via the Keycloak admin UI.
 
-Typical run command:
+Start Keycloak:
 
 ```bash
 # From repo root
-docker compose -f docker-compose.oidc.local.yml up -d --build
+# Choose a strong password; do not commit it.
+export KEYCLOAK_ADMIN_PASSWORD='...'
+docker compose -f docker-compose.oidc.yml up -d
 ```
 
-This local stack typically defaults to `AUTH_MODE=hybrid`.
-To force OIDC-only mode for testing:
+Open Keycloak admin UI (realm/user setup):
+
+- `http://localhost:8080/admin`
+- Switch realm to `excalidash`
+- Create a user and set a password in `Credentials`
+
+Configure ExcaliDash backend for hybrid OIDC:
 
 ```bash
-AUTH_MODE=oidc_enforced docker compose -f docker-compose.oidc.local.yml up -d --build
+cd backend
+cp .env.oidc.example .env
+# Ensure OIDC_REDIRECT_URI matches where your frontend is running:
+# - http://localhost:6767/api/auth/oidc/callback (repo frontend dev default)
+# - https://excalidash.example.com/api/auth/oidc/callback (production)
 ```
-
-Then open:
-
-| Service        | URL                      | Credentials / Notes |
-| -------------- | ------------------------ | ------------------- |
-| ExcaliDash     | `http://localhost:16767` | App UI              |
-| Keycloak admin | `http://localhost:8081`  | `admin` / `admin`   |
-
-OIDC login test users (realm: `excalidash`):
-
-| User                | Notes                                                                 |
-| ------------------- | --------------------------------------------------------------------- |
-| `alice@example.com` | Created by the seed realm; set an initial password in Keycloak admin. |
-| `bob@example.com`   | Created by the seed realm; set an initial password in Keycloak admin. |
 
 Stop/clean up:
 
 ```bash
-docker compose -f docker-compose.oidc.local.yml down
-
-# Optional: remove database volume for a full reset
-docker compose -f docker-compose.oidc.local.yml down -v
+docker compose -f docker-compose.oidc.yml down
 ```
 
 </details>
