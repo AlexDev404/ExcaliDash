@@ -67,16 +67,17 @@ export const ImpersonationBanner: React.FC = () => {
     const sync = () => setImpersonation(readImpersonationState());
     sync();
 
-    const verifyServerImpersonationState = async () => {
-      try {
-        const response = await api.get<AuthStatusResponse>('/auth/status');
-        const serverImpersonating = Boolean(response.data?.authenticated && response.data?.user?.impersonatorId);
-        if (!serverImpersonating && readImpersonationState()) {
-          clearLocalImpersonation();
+      const verifyServerImpersonationState = async () => {
+        try {
+          const response = await api.get<AuthStatusResponse>('/auth/status');
+          const serverImpersonating = Boolean(response.data?.authenticated && response.data?.user?.impersonatorId);
+          if (!serverImpersonating && readImpersonationState()) {
+            clearLocalImpersonation();
+          }
+        } catch {
+          // Ignore transient network issues; we'll re-check on next mount or storage event.
         }
-      } catch {
-      }
-    };
+      };
 
     void verifyServerImpersonationState();
     window.addEventListener('storage', sync);

@@ -40,11 +40,38 @@ docker compose -f docker-compose.prod.yml up -d
 
 </details>
 
-- Fixed live-collaboration permission enforcement: edit access changes now take effect promptly, preventing continued edits after access is
-  revoked.
-- Simplified “anyone with the link” sharing by removing the legacy share-token exchange flow and /share/:id; sharing now consistently uses
-  the public /shared/:id route.
-- Reduced data leakage in shared/public views by no longer exposing the owner’s collection/trash identifiers (collectionId is masked for
-  non-owners).
-- Improved UX and performance by avoiding background preview writes from the dashboard and by defaulting the editor to a safe non-owner
-  access state until loaded.
+## What's New
+
+This merge brings `pre-release` (`v0.4.26-dev`) into `main` (`v0.3.2`).
+
+### Authentication and user management
+
+- Added a full authentication platform with local registration/login and password reset.
+- Added bootstrap setup and onboarding controls for first admin creation.
+- Added admin and user-management flows, including profile and impersonation-aware UI behavior.
+- Added OIDC-enabled auth options and hardened token/session controls for hybrid deployments.
+
+### Sharing, collaboration, and permissions
+
+- Added sharing options between users and permission-aware sharing behavior.
+- Enforced immediate permission revocation during collaboration sessions.
+- Improved real-time ordering synchronization across collaborators.
+- Reduced shared-view leakage of sensitive owner metadata.
+
+### Security and reliability
+
+- Tightened CSRF handling for auth, session, and socket workflows.
+- Added additional security testing around sandboxing, login attempts, and request validation.
+- Added audit event scaffolding and improved startup/migration safety.
+
+### Import/export and data workflows
+
+- Added import/export support for backup and restore use-cases.
+- Improved exported drawing metadata handling and streaming behavior.
+- Improved upload/import compatibility and preview/update behavior during edits.
+
+### Collaboration and UI experience
+
+- Added profile/admin pages, dashboard and settings improvements.
+- Reduced fragile browser-context behavior in update checks, editor state handling, and collaboration flows.
+

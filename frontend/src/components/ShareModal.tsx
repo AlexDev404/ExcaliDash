@@ -251,6 +251,7 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     } catch {
+      // Clipboard may be unavailable (permission denied / insecure context).
     }
   };
 

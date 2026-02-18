@@ -909,6 +909,7 @@ export const Editor: React.FC = () => {
             try {
               await saveDataRef.current(drawingId, elements, appState, files);
             } catch {
+              // Autosave is best-effort; the UI handles surfacing explicit save failures elsewhere.
             }
             return;
           }

@@ -233,6 +233,7 @@ const redirectToLogin = async () => {
       return;
     }
   } catch {
+    // If auth status can't be fetched, fall back to cached or default authEnabled behavior.
   }
 
   const authEnabled = await getAuthEnabledStatus();
