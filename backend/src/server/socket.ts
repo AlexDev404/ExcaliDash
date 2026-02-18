@@ -5,9 +5,6 @@ import { AuthModeService } from "../auth/authMode";
 import { ACCESS_TOKEN_COOKIE_NAME, parseCookieHeader } from "../auth/cookies";
 import { BOOTSTRAP_USER_ID } from "../auth/authMode";
 import {
-  SHARE_SESSION_COOKIE_NAME,
-  parseShareSessionToken,
-  normalizeDrawingPermission,
   getDrawingAccess,
   canEditDrawing,
   canViewDrawing,
@@ -95,27 +92,6 @@ export const registerSocketHandlers = ({
     }
   };
 
-  const getSocketSharePrincipal = async (cookieHeader: string | undefined): Promise<DrawingPrincipal | null> => {
-    if (!cookieHeader) return null;
-    const cookies = parseCookieHeader(cookieHeader);
-    const token = cookies[SHARE_SESSION_COOKIE_NAME];
-    if (!token || token.trim().length === 0) return null;
-    const parsed = parseShareSessionToken(token, jwtSecret);
-    if (!parsed) return null;
-
-    const share = await prisma.drawingLinkShare.findUnique({
-      where: { id: parsed.shareId },
-      select: { id: true, drawingId: true, permission: true, revokedAt: true, expiresAt: true },
-    });
-    if (!share || share.revokedAt) return null;
-    if (share.drawingId !== parsed.drawingId) return null;
-    if (share.expiresAt && share.expiresAt.getTime() <= Date.now()) return null;
-    const permission = normalizeDrawingPermission(share.permission);
-    if (!permission || permission !== parsed.permission) return null;
-
-    return { kind: "share", shareId: share.id, drawingId: share.drawingId, permission };
-  };
-
   io.use(async (socket, next) => {
     try {
       const tokenFromAuth = socket.handshake.auth?.token as string | undefined;
@@ -133,18 +109,9 @@ export const registerSocketHandlers = ({
         return next();
       }
 
-      // Allow unauthenticated share-session principals when auth is enabled.
-      if (authEnabled) {
-        const sharePrincipal = await getSocketSharePrincipal(socket.handshake.headers.cookie);
-        if (sharePrincipal) {
-          socketPrincipalMap.set(socket.id, sharePrincipal);
-          return next();
-        }
-
-        // Google-Docs-style "anyone with the link": allow anonymous sockets and enforce access on join-room
-        // using getDrawingAccess (which now consults active link-share policies).
-        return next();
-      }
+      // Google-Docs-style "anyone with the link": allow anonymous sockets and enforce access on join-room
+      // using getDrawingAccess (which consults active link-share policies).
+      if (authEnabled) return next();
 
       return next(new Error("Authentication required"));
     } catch {
@@ -154,7 +121,33 @@ export const registerSocketHandlers = ({
 
   io.on("connection", (socket) => {
     const principal = socketPrincipalMap.get(socket.id) || null;
-    const authorizedDrawingAccess = new Map<string, "view" | "edit" | "owner">();
+    const authorizedDrawingAccess = new Map<
+      string,
+      { access: "view" | "edit" | "owner"; checkedAtMs: number }
+    >();
+    const ACCESS_CACHE_TTL_MS = 1500;
+
+    const getCachedOrFreshAccess = async (
+      drawingId: string
+    ): Promise<"view" | "edit" | "owner" | null> => {
+      const cached = authorizedDrawingAccess.get(drawingId);
+      const now = Date.now();
+      if (cached && now - cached.checkedAtMs < ACCESS_CACHE_TTL_MS) {
+        return cached.access;
+      }
+      const access = await getDrawingAccess({
+        prisma,
+        principal,
+        drawingId,
+      });
+      if (!canViewDrawing(access)) {
+        authorizedDrawingAccess.delete(drawingId);
+        return null;
+      }
+      const normalized = access === "owner" ? "owner" : access;
+      authorizedDrawingAccess.set(drawingId, { access: normalized, checkedAtMs: now });
+      return normalized;
+    };
 
     socket.on(
       "join-room",
@@ -169,19 +162,14 @@ export const registerSocketHandlers = ({
         ack?: (payload: { user: Omit<User, "socketId" | "isActive"> }) => void
       ) => {
         try {
-          const access = await getDrawingAccess({
-            prisma,
-            principal,
-            drawingId,
-          });
-          if (!canViewDrawing(access)) {
+          const access = await getCachedOrFreshAccess(drawingId);
+          if (!access) {
             socket.emit("error", { message: "You do not have access to this drawing" });
             return;
           }
 
           const roomId = `drawing_${drawingId}`;
           socket.join(roomId);
-          authorizedDrawingAccess.set(drawingId, access === "owner" ? "owner" : access);
 
           let trustedUserId =
             typeof user?.id === "string" && user.id.trim().length > 0
@@ -189,10 +177,9 @@ export const registerSocketHandlers = ({
               : socket.id;
           let trustedName = toPresenceName(user?.name);
 
-          if (!principal || principal.kind === "share") {
+          if (!principal) {
             // Never trust client-provided ids for anonymous/share-link sessions; prevent spoofing/collisions.
-            const prefix = principal?.kind === "share" ? `share:${principal.shareId}` : "anon";
-            trustedUserId = `${prefix}:${socket.id}`.slice(0, 200);
+            trustedUserId = `anon:${socket.id}`.slice(0, 200);
           } else if (principal?.kind === "user" && principal.userId !== BOOTSTRAP_USER_ID) {
             const account = await prisma.user.findUnique({
               where: { id: principal.userId },
@@ -263,10 +250,8 @@ export const registerSocketHandlers = ({
       }
 
       // Enforce edit permission for every mutation event.
-      // We rely on the access computed during join-room to avoid any mismatch between the
-      // socket principal and follow-up DB lookups (and to keep this handler fast).
-      const joinedAccess = authorizedDrawingAccess.get(drawingId) ?? "none";
-      if (!canEditDrawing(joinedAccess)) {
+      const joinedAccess = await getCachedOrFreshAccess(drawingId);
+      if (!joinedAccess || !canEditDrawing(joinedAccess)) {
         socket.emit("error", { message: "Read-only access: cannot edit this drawing" });
         return;
       }

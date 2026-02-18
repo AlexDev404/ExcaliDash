@@ -161,7 +161,7 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
   const [isCopied, setIsCopied] = useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const shareableEditorUrl = `${origin}/editor/${drawingId}`;
+  const shareableEditorUrl = `${origin}/shared/${drawingId}`;
 
   const activeLink = useMemo(() => {
     const now = Date.now();
@@ -299,14 +299,11 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
       setLinkPermission(perm);
       const expiresAt = newExpiry ?? calculateExpiresAt(expiryOption, customExpiry);
       
-      const { token: _token } = await api.createLinkShare(drawingId, {
+      await api.createLinkShare(drawingId, {
         permission: perm,
         expiresAt,
       });
 
-      // Token is intentionally not used for the share URL anymore (Google Docs-style):
-      // the drawing id is the link, and server-side link-share policy decides view/edit access.
-      void _token;
       await refresh();
       void handleCopy(shareableEditorUrl);
     } catch (err: unknown) {
@@ -374,7 +371,7 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
               <input
                 value={userQuery}
                 onChange={(e) => setUserQuery(e.target.value)}
-                placeholder="Add people and groups"
+                placeholder="Add people"
                 className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-black dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 focus:outline-none focus:ring-0 focus:border-indigo-600 dark:focus:border-indigo-500 transition-all font-bold placeholder:text-slate-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.05)]"
               />
             </div>

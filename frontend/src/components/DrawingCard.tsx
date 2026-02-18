@@ -158,7 +158,8 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
         const previewHtml = svg.outerHTML;
         setPreviewSvg(previewHtml);
 
-        api.updateDrawing(drawing.id, { preview: previewHtml }).catch(console.error);
+        // Don't persist previews from the dashboard: it causes background writes during scrolling,
+        // spams 403/404 in shared contexts, and can persist unintended content.
         onPreviewGenerated?.(drawing.id, previewHtml);
       } catch (e) {
         if (!cancelled) {

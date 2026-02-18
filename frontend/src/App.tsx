@@ -16,7 +16,6 @@ const Register = lazy(() => import('./pages/Register').then(m => ({ default: m.R
 const PasswordResetRequest = lazy(() => import('./pages/PasswordResetRequest').then(m => ({ default: m.PasswordResetRequest })));
 const PasswordResetConfirm = lazy(() => import('./pages/PasswordResetConfirm').then(m => ({ default: m.PasswordResetConfirm })));
 const AuthSetupChoice = lazy(() => import('./pages/AuthSetupChoice').then(m => ({ default: m.AuthSetupChoice })));
-const Share = lazy(() => import('./pages/Share').then(m => ({ default: m.Share })));
 
 const PageLoader = () => (
   <div className="min-h-screen bg-slate-50 dark:bg-neutral-950 flex items-center justify-center">
@@ -37,7 +36,6 @@ function App() {
                 <Route path="/reset-password" element={<PasswordResetRequest />} />
                 <Route path="/reset-password-confirm" element={<PasswordResetConfirm />} />
                 <Route path="/auth-setup" element={<AuthSetupChoice />} />
-                <Route path="/share/:id" element={<Share />} />
                 <Route
                   path="/"
                   element={

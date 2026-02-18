@@ -58,6 +58,12 @@ A self-hosted dashboard and organizer for [Excalidraw](https://github.com/excali
 </details>
 
 <details>
+<summary>Scoped internal & external sharing</summary>
+
+![](readme-assets/scoped.png)
+
+</details>
+<details>
 <summary>Search your drawings</summary>
 
 ![](readme-assets/search.gif)

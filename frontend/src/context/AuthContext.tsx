@@ -58,9 +58,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const isShareFlow =
-          window.location.pathname.startsWith("/share/") ||
-          window.location.pathname.startsWith("/shared/");
+        const isShareFlow = window.location.pathname.startsWith("/shared/");
 
         try {
           const statusResponse = await authStatus();

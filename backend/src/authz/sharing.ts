@@ -1,25 +1,11 @@
-import crypto from "crypto";
-import jwt from "jsonwebtoken";
 import type { PrismaClient } from "../generated/client";
+import crypto from "crypto";
 import { hashTokenForStorage } from "../auth/tokenSecurity";
-import { readCookie } from "../auth/cookies";
 
 export type DrawingPermission = "view" | "edit";
 export type DrawingAccess = "none" | DrawingPermission | "owner";
 
-export type DrawingPrincipal =
-  | { kind: "user"; userId: string }
-  | { kind: "share"; shareId: string; drawingId: string; permission: DrawingPermission };
-
-export const SHARE_SESSION_COOKIE_NAME = "excalidash-share-session";
-const SHARE_SESSION_TOKEN_TYPE = "drawing_share_session";
-
-type ShareSessionJwtPayload = {
-  type: string;
-  shareId: string;
-  drawingId: string;
-  permission: DrawingPermission;
-};
+export type DrawingPrincipal = { kind: "user"; userId: string };
 
 export const normalizeDrawingPermission = (input: unknown): DrawingPermission | null => {
   if (input === "view" || input === "edit") return input;
@@ -125,69 +111,6 @@ export const verifyPassphraseHash = (
   return false;
 };
 
-export const issueShareSessionToken = (params: {
-  jwtSecret: string;
-  shareId: string;
-  drawingId: string;
-  permission: DrawingPermission;
-  expiresAt: Date;
-}): string => {
-  const payload: ShareSessionJwtPayload = {
-    type: SHARE_SESSION_TOKEN_TYPE,
-    shareId: params.shareId,
-    drawingId: params.drawingId,
-    permission: params.permission,
-  };
-
-  const ttlSeconds = Math.max(60, Math.floor((params.expiresAt.getTime() - Date.now()) / 1000));
-  return jwt.sign(payload, params.jwtSecret, { expiresIn: ttlSeconds });
-};
-
-export const parseShareSessionToken = (
-  token: string,
-  jwtSecret: string
-): { shareId: string; drawingId: string; permission: DrawingPermission } | null => {
-  try {
-    const decoded = jwt.verify(token, jwtSecret) as unknown;
-    if (typeof decoded !== "object" || decoded === null) return null;
-    const payload = decoded as Partial<ShareSessionJwtPayload>;
-    if (payload.type !== SHARE_SESSION_TOKEN_TYPE) return null;
-    if (typeof payload.shareId !== "string" || payload.shareId.trim().length === 0) return null;
-    if (typeof payload.drawingId !== "string" || payload.drawingId.trim().length === 0) return null;
-    const permission = normalizeDrawingPermission(payload.permission);
-    if (!permission) return null;
-    return { shareId: payload.shareId, drawingId: payload.drawingId, permission };
-  } catch {
-    return null;
-  }
-};
-
-export const getSharePrincipalFromRequest = async (params: {
-  prisma: PrismaClient;
-  req: { headers: { cookie?: string | undefined } };
-  jwtSecret: string;
-}): Promise<DrawingPrincipal | null> => {
-  const token = readCookie(params.req as never, SHARE_SESSION_COOKIE_NAME);
-  if (!token) return null;
-
-  const parsed = parseShareSessionToken(token, params.jwtSecret);
-  if (!parsed) return null;
-
-  const share = await params.prisma.drawingLinkShare.findUnique({
-    where: { id: parsed.shareId },
-    select: { id: true, drawingId: true, permission: true, revokedAt: true, expiresAt: true },
-  });
-
-  if (!share || share.revokedAt) return null;
-  if (share.drawingId !== parsed.drawingId) return null;
-  if (share.expiresAt && share.expiresAt.getTime() <= Date.now()) return null;
-
-  const permission = normalizeDrawingPermission(share.permission);
-  if (!permission || permission !== parsed.permission) return null;
-
-  return { kind: "share", shareId: share.id, drawingId: share.drawingId, permission };
-};
-
 export const getDrawingAccess = async (params: {
   prisma: PrismaClient;
   principal: DrawingPrincipal | null;
@@ -197,19 +120,6 @@ export const getDrawingAccess = async (params: {
   const nowMs = (params.now ?? new Date()).getTime();
 
   let baseAccess: DrawingAccess = "none";
-
-  // Share-session access (legacy token exchange flow).
-  if (params.principal?.kind === "share") {
-    if (params.principal.drawingId === params.drawingId) {
-      const share = await params.prisma.drawingLinkShare.findUnique({
-        where: { id: params.principal.shareId },
-        select: { permission: true, revokedAt: true, expiresAt: true },
-      });
-      if (share && !share.revokedAt && (!share.expiresAt || share.expiresAt.getTime() > nowMs)) {
-        baseAccess = normalizeDrawingPermission(share.permission) ?? "none";
-      }
-    }
-  }
 
   // User-based access (owner or explicit ACL).
   if (params.principal?.kind === "user") {

@@ -223,7 +223,6 @@ const getAuthEnabledStatus = async (): Promise<boolean | null> => {
 
 const redirectToLogin = async () => {
   const isShareFlow =
-    window.location.pathname.startsWith("/share/") ||
     window.location.pathname.startsWith("/shared/");
   if (isShareFlow) return;
 
@@ -303,7 +302,6 @@ api.interceptors.response.use(
       const url = String(originalRequest.url || "");
       const isAuthRoute = url.includes('/auth/');
       const isShareFlow =
-        window.location.pathname.startsWith("/share/") ||
         window.location.pathname.startsWith("/shared/");
       const authEnabled = !isAuthRoute ? await getAuthEnabledStatus() : true;
 
@@ -510,22 +508,6 @@ export const getDrawing = async (id: string) => {
   return deserializeDrawing(response.data);
 };
 
-export const exchangeShareLink = async (params: {
-  drawingId: string;
-  token: string;
-  passphrase?: string;
-}): Promise<{ success: true; permission: "view" | "edit"; expiresAt: string }> => {
-  const response = await api.post<{ success: true; permission: "view" | "edit"; expiresAt: string }>(
-    "/shares/exchange",
-    {
-      drawingId: params.drawingId,
-      token: params.token,
-      passphrase: params.passphrase ?? "",
-    }
-  );
-  return response.data;
-};
-
 export type ShareResolvedUser = { id: string; name: string; email: string };
 
 export const resolveShareUsers = async (drawingId: string, q: string): Promise<ShareResolvedUser[]> => {
@@ -580,8 +562,8 @@ export const revokeDrawingPermission = async (drawingId: string, permissionId: s
 export const createLinkShare = async (
   drawingId: string,
   params: { permission: "view" | "edit"; expiresAt?: string; passphrase?: string }
-): Promise<{ share: DrawingLinkShareRow; token: string }> => {
-  const response = await api.post<{ share: DrawingLinkShareRow; token: string }>(
+): Promise<{ share: DrawingLinkShareRow }> => {
+  const response = await api.post<{ share: DrawingLinkShareRow }>(
     `/drawings/${drawingId}/link-shares`,
     params
   );

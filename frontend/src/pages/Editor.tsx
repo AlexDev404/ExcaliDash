@@ -92,7 +92,7 @@ export const Editor: React.FC = () => {
       return true;
     }
   }, [autoHideStorageKey]);
-  const [accessLevel, setAccessLevel] = useState<"none" | "view" | "edit" | "owner">("owner");
+  const [accessLevel, setAccessLevel] = useState<"none" | "view" | "edit" | "owner">("none");
   const canEdit = accessLevel === "edit" || accessLevel === "owner";
   const [drawingName, setDrawingName] = useState('Drawing Editor');
   const [isRenaming, setIsRenaming] = useState(false);

@@ -1,8 +1,6 @@
 import express from "express";
 import { Prisma } from "../../generated/client";
 import { DashboardRouteDeps, SortDirection, SortField } from "./types";
-import { config as globalConfig } from "../../config";
-import crypto from "crypto";
 import {
   getUserTrashCollectionId,
   isTrashCollectionId,
@@ -14,12 +12,9 @@ import {
   canEditDrawing,
   canViewDrawing,
   getDrawingAccess,
-  getSharePrincipalFromRequest,
   hashShareLinkToken,
   isOwnerAccess,
-  issueShareSessionToken,
   normalizeDrawingPermission,
-  SHARE_SESSION_COOKIE_NAME,
   type DrawingPrincipal,
 } from "../../authz/sharing";
 
@@ -53,31 +48,7 @@ export const registerDrawingRoutes = (
     if (req.user?.id) {
       return { kind: "user", userId: req.user.id };
     }
-    return getSharePrincipalFromRequest({
-      prisma,
-      req: { headers: { cookie: req.headers.cookie } },
-      jwtSecret: globalConfig.jwtSecret,
-    });
-  };
-
-  const setShareSessionCookie = (req: express.Request, res: express.Response, token: string, expiresAt: Date) => {
-    const trustProxy = req.app?.get?.("trust proxy");
-    const canTrustProxyHeaders =
-      trustProxy === true ||
-      (typeof trustProxy === "number" && trustProxy > 0) ||
-      typeof trustProxy === "function";
-    const forwardedProto = req.headers["x-forwarded-proto"];
-    const rawForwarded = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
-    const firstHop = String(rawForwarded || "").split(",")[0].trim().toLowerCase();
-    const requestUsesHttps = Boolean(req.secure) || (canTrustProxyHeaders && firstHop === "https");
-    const forceSecureInProduction = config.nodeEnv === "production";
-    res.cookie(SHARE_SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: forceSecureInProduction ? true : requestUsesHttps,
-      path: "/",
-      expires: expiresAt,
-    });
+    return null;
   };
 
   const resolveDefaultTtlMs = (permission: "view" | "edit"): number => {
@@ -94,12 +65,6 @@ export const registerDrawingRoutes = (
     const parsed = Number(process.env.LINK_SHARE_MAX_TTL_MS);
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
     return 90 * 24 * 60 * 60 * 1000;
-  };
-
-  const resolveSessionTtlMs = (): number => {
-    const parsed = Number(process.env.LINK_SHARE_SESSION_TTL_MS);
-    if (Number.isFinite(parsed) && parsed > 0) return parsed;
-    return 12 * 60 * 60 * 1000;
   };
 
   app.get("/drawings", requireAuth, asyncHandler(async (req, res) => {
@@ -325,8 +290,8 @@ export const registerDrawingRoutes = (
       const { permissions: _permissions, ...rest } = d;
       return {
         ...rest,
-        // Shared drawings do not participate in trash mapping for the viewer; keep null/ids as-is.
-        collectionId: d.collectionId ?? null,
+        // Collections are owner-scoped; don't leak the owner's collection ids to viewers.
+        collectionId: null,
         accessLevel: perm,
       };
     };
@@ -368,10 +333,12 @@ export const registerDrawingRoutes = (
       return res.status(404).json({ error: "Drawing not found", message: "Drawing does not exist" });
     }
 
-    const userIdForTrash = principal?.kind === "user" ? principal.userId : drawing.userId;
+    const isOwner = principal?.kind === "user" && principal.userId === drawing.userId;
     return res.json({
       ...drawing,
-      collectionId: toPublicTrashCollectionId(drawing.collectionId, userIdForTrash),
+      // Collections (and trash mapping) are owner-scoped. For shared/public access, avoid leaking
+      // owner collection ids like `trash:<ownerId>` and avoid implying the viewer can organize it.
+      collectionId: isOwner ? toPublicTrashCollectionId(drawing.collectionId, drawing.userId) : null,
       elements: parseJsonField(drawing.elements, []),
       appState: parseJsonField(drawing.appState, {}),
       files: parseJsonField(drawing.files, {}),
@@ -814,8 +781,9 @@ export const registerDrawingRoutes = (
       data: { revokedAt: new Date() },
     });
 
-    const token = buildShareLinkToken();
-    const tokenHash = hashShareLinkToken(token);
+    // Token is generated only to satisfy the current schema's tokenHash requirement.
+    // Link access is based on drawing id + active policy (no secret token in the URL).
+    const tokenHash = hashShareLinkToken(buildShareLinkToken());
 
     const created = await prisma.drawingLinkShare.create({
       data: {
@@ -846,7 +814,7 @@ export const registerDrawingRoutes = (
       });
     }
 
-    return res.json({ share: created, token });
+    return res.json({ share: created });
   }));
 
   app.delete("/drawings/:id/link-shares/:shareId", requireAuth, asyncHandler(async (req, res) => {
@@ -877,64 +845,5 @@ export const registerDrawingRoutes = (
     return res.json({ success: true });
   }));
 
-  // Link exchange: token -> httpOnly share session cookie
-  app.post("/shares/exchange", optionalAuth, asyncHandler(async (req, res) => {
-    const drawingId = typeof req.body?.drawingId === "string" ? req.body.drawingId : null;
-    const token = typeof req.body?.token === "string" ? req.body.token : null;
-
-    if (!drawingId || !token) {
-      return res.status(400).json({ error: "Validation error", message: "Missing drawingId or token" });
-    }
-
-    const tokenHash = hashShareLinkToken(token);
-    const share = await prisma.drawingLinkShare.findFirst({
-      where: { tokenHash },
-      select: {
-        id: true,
-        drawingId: true,
-        permission: true,
-        revokedAt: true,
-        expiresAt: true,
-        failedAttempts: true,
-        lockedUntil: true,
-      },
-    });
-
-    if (!share || share.drawingId !== drawingId || share.revokedAt) {
-      return res.status(404).json({ error: "Not found", message: "Share link is invalid" });
-    }
-    if (share.expiresAt && share.expiresAt.getTime() <= Date.now()) {
-      return res.status(410).json({ error: "Expired", message: "Share link has expired" });
-    }
-
-    const permission = normalizeDrawingPermission(share.permission) ?? "view";
-
-    await prisma.drawingLinkShare.update({
-      where: { id: share.id },
-      data: {
-        failedAttempts: 0,
-        lockedUntil: null,
-        lastUsedAt: new Date(),
-        lastUsedIp: (req.ip || req.connection.remoteAddress || "unknown").slice(0, 255),
-      },
-    });
-
-    const sessionTtlMs = resolveSessionTtlMs();
-    const sessionExpiresAt = new Date(Date.now() + sessionTtlMs);
-    const linkExpiresAt = share.expiresAt ?? null;
-    const finalExpiry =
-      linkExpiresAt && linkExpiresAt.getTime() < sessionExpiresAt.getTime()
-        ? linkExpiresAt
-        : sessionExpiresAt;
-    const tokenValue = issueShareSessionToken({
-      jwtSecret: globalConfig.jwtSecret,
-      shareId: share.id,
-      drawingId,
-      permission,
-      expiresAt: finalExpiry,
-    });
-    setShareSessionCookie(req, res, tokenValue, finalExpiry);
-
-    return res.json({ success: true, permission, expiresAt: finalExpiry.toISOString() });
-  }));
+  // Legacy share-token exchange endpoint removed: link access is based on drawing id + active policy.
 };
