@@ -31,6 +31,11 @@ type BuildRemoteSceneUpdateInput = {
   incomingFiles?: Record<string, any>;
 };
 
+export const getPersistedAppState = (appState: Record<string, any> | null | undefined) => ({
+  viewBackgroundColor: appState?.viewBackgroundColor ?? "#ffffff",
+  gridSize: appState?.gridSize ?? null,
+});
+
 export const buildRemoteSceneUpdate = ({
   collaborators,
   localElements = [],

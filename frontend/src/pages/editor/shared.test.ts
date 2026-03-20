@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRemoteSceneUpdate,
+  getPersistedAppState,
   hasRenderableElements,
   isSuspiciousEmptySnapshot,
   isStaleEmptySnapshot,
@@ -149,5 +150,37 @@ describe("editor/shared scene guards", () => {
       localElements[1],
       localElements[0],
     ]);
+  });
+
+  it("keeps only durable appState fields for persisted drawings", () => {
+    expect(
+      getPersistedAppState({
+        viewBackgroundColor: "#123456",
+        gridSize: 24,
+        cursorButton: "down",
+        activeTool: { type: "hand", locked: false, lastActiveTool: null },
+        selectedElementIds: { a: true },
+        selectedGroupIds: { g1: true },
+        editingElement: { id: "editing" },
+        draggingElement: { id: "dragging" },
+        scrollX: 120,
+        scrollY: 240,
+      })
+    ).toEqual({
+      viewBackgroundColor: "#123456",
+      gridSize: 24,
+    });
+  });
+
+  it("falls back to safe defaults when persisted appState is missing or invalid", () => {
+    expect(getPersistedAppState(undefined)).toEqual({
+      viewBackgroundColor: "#ffffff",
+      gridSize: null,
+    });
+
+    expect(getPersistedAppState(null)).toEqual({
+      viewBackgroundColor: "#ffffff",
+      gridSize: null,
+    });
   });
 });

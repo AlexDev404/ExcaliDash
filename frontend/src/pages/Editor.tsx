@@ -14,6 +14,7 @@ import * as api from '../api';
 import { useTheme } from '../context/ThemeContext';
 import {
   buildRemoteSceneUpdate,
+  getPersistedAppState,
   UIOptions,
   getFilesDelta,
   hasRenderableElements,
@@ -790,11 +791,7 @@ export const Editor: React.FC = () => {
     if (!drawingId) return;
 
     try {
-      const persistableAppState = {
-        ...appState,
-        viewBackgroundColor: appState?.viewBackgroundColor || '#ffffff',
-        gridSize: appState?.gridSize || null,
-      };
+      const persistableAppState = getPersistedAppState(appState);
 
       const candidateElements = Array.isArray(elements) ? elements : [];
       const {
@@ -1192,11 +1189,9 @@ export const Editor: React.FC = () => {
           recordElementVersion(el);
         });
 
-        const persistedAppState = data.appState || {};
+        const persistedAppState = getPersistedAppState(data.appState || {});
         const hydratedAppState = {
           ...persistedAppState,
-          viewBackgroundColor: persistedAppState.viewBackgroundColor ?? '#ffffff',
-          gridSize: persistedAppState.gridSize ?? null,
           collaborators: new Map(),
         };
         latestAppStateRef.current = hydratedAppState;
