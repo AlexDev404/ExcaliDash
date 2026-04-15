@@ -283,6 +283,20 @@ backend:
     - OIDC_SCOPES=openid profile email
 ```
 
+Quick preflight check (recommended before starting backend):
+
+```bash
+cd backend
+npm run oidc:doctor
+```
+
+Provider-specific env templates for existing IdPs:
+
+- `backend/.env.oidc.keycloak.example`
+- `backend/.env.oidc.authentik.example`
+
+Copy one to `backend/.env`, update issuer/client/redirect values, then run `npm run oidc:doctor`.
+
 Notes:
 
 | Topic                       | Notes                                                                                                                         |
@@ -290,6 +304,10 @@ Notes:
 | OIDC-only (`oidc_enforced`) | You typically do not use local bootstrap admin registration; first admin can be created through your IdP depending on config. |
 | Reverse proxy               | Set `FRONTEND_URL` and `TRUST_PROXY` correctly or auth + websockets may fail.                                                 |
 | ID token algorithm          | ExcaliDash defaults to `RS256`. If your IdP client is explicitly configured for another signed ID-token algorithm such as `HS256`, set `OIDC_ID_TOKEN_SIGNED_RESPONSE_ALG` to match that exact client setting. `none` is not allowed, and `HS*` requires `OIDC_CLIENT_SECRET`. |
+| Keycloak issuer format      | Use realm issuer URL: `https://<keycloak-host>/realms/<realm>`.                                                               |
+| Authentik issuer format     | Use provider issuer URL: `https://<authentik-host>/application/o/<provider-slug>/`.                                           |
+| Authentik `email_verified`  | If Authentik does not emit `email_verified=true`, either add the scope mapping or set `OIDC_REQUIRE_EMAIL_VERIFIED=false`.   |
+| Redirect URI                | Must be exact callback: `https://<excalidash-host>/api/auth/oidc/callback`.                                                   |
 
 </details>
 

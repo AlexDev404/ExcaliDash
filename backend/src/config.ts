@@ -207,6 +207,29 @@ const resolveOidcConfig = (authMode: AuthMode): OidcConfig => {
       "OIDC_ID_TOKEN_SIGNED_RESPONSE_ALG using HS* requires OIDC_CLIENT_SECRET for a confidential client"
     );
   }
+  if (enabled && issuerUrl) {
+    const issuerLower = issuerUrl.toLowerCase();
+    const providerNameLower = getOptionalEnv("OIDC_PROVIDER_NAME", "OIDC").toLowerCase();
+    if (
+      providerNameLower.includes("keycloak") &&
+      !/\/realms\/[^/]+\/?$/i.test(issuerUrl)
+    ) {
+      console.warn(
+        "[config] OIDC_PROVIDER_NAME=Keycloak usually requires issuer format https://<host>/realms/<realm>."
+      );
+    }
+    if (
+      providerNameLower.includes("authentik") &&
+      !/\/application\/o\/[^/]+\/?$/i.test(issuerUrl)
+    ) {
+      console.warn(
+        "[config] OIDC_PROVIDER_NAME=Authentik usually requires issuer format https://<host>/application/o/<provider-slug>/."
+      );
+    }
+    if (!issuerLower.startsWith("http://") && !issuerLower.startsWith("https://")) {
+      console.warn("[config] OIDC_ISSUER_URL should start with http:// or https://.");
+    }
+  }
 
   return {
     enabled,

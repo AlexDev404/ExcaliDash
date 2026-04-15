@@ -12,6 +12,7 @@
     "dev:simulate-auth-onboarding:fresh": "node scripts/simulate-auth-onboarding.cjs --scenario fresh",
     "dev:simulate-auth-onboarding:migration": "node scripts/simulate-auth-onboarding.cjs --scenario migration",
     "dev:simulate-auth-onboarding:dry-run": "node scripts/simulate-auth-onboarding.cjs --scenario migration --dry-run",
+    "oidc:doctor": "node scripts/oidc-doctor.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
