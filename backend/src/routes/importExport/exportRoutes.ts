@@ -18,6 +18,7 @@ export const registerExcalidashExportRoute = (deps: RegisterImportExportDeps) =>
     asyncHandler,
     getBackendVersion,
     parseJsonField,
+    s3ImageStore,
   } = deps;
 
   app.get("/export/excalidash", requireAuth, asyncHandler(async (req, res) => {
@@ -143,13 +144,45 @@ export const registerExcalidashExportRoute = (deps: RegisterImportExportDeps) =>
     for (const drawing of drawings) {
       const meta = drawingsManifestById.get(drawing.id);
       if (!meta) continue;
+      const parsedFiles = parseJsonField(drawing.files, {} as Record<string, unknown>);
+      const filesEntries = Object.entries(parsedFiles || {});
+      const hydratedFilesEntries = await Promise.all(
+        filesEntries.map(async ([fileId, fileValue]) => {
+          const fileRecord = fileValue as Record<string, unknown>;
+          if (
+            !fileRecord ||
+            typeof fileRecord !== "object" ||
+            typeof fileRecord.dataURL === "string" ||
+            !fileRecord.externalStorage
+          ) {
+            return [fileId, fileValue] as const;
+          }
+
+          try {
+            const dataURL = await s3ImageStore.loadExternalFileAsDataUrl(fileRecord);
+            if (!dataURL) {
+              return [fileId, fileValue] as const;
+            }
+            return [
+              fileId,
+              {
+                ...fileRecord,
+                dataURL,
+              },
+            ] as const;
+          } catch {
+            return [fileId, fileValue] as const;
+          }
+        })
+      );
+
       const drawingData = {
         type: "excalidraw" as const,
         version: 2 as const,
         source: exportSource,
         elements: parseJsonField(drawing.elements, [] as unknown[]),
         appState: parseJsonField(drawing.appState, {} as Record<string, unknown>),
-        files: parseJsonField(drawing.files, {} as Record<string, unknown>),
+        files: Object.fromEntries(hydratedFilesEntries),
         excalidash: {
           drawingId: drawing.id,
           collectionId: drawing.collectionId ?? null,

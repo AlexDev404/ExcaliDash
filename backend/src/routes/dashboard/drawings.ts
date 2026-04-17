@@ -40,6 +40,7 @@ export const registerDrawingRoutes = (
     MAX_PAGE_SIZE,
     config,
     logAuditEvent,
+    s3ImageStore,
   } = deps;
 
   const getRequestPrincipal = async (
@@ -360,6 +361,63 @@ export const registerDrawingRoutes = (
     });
   }));
 
+  app.get("/drawings/:id/files/:fileId", optionalAuth, asyncHandler(async (req, res) => {
+    const principal = await getRequestPrincipal(req);
+    const { id, fileId } = req.params;
+
+    const access = await getDrawingAccess({ prisma, principal, drawingId: id });
+    if (!canViewDrawing(access)) {
+      if (respondWithAuthErrorIfPresent(req, res)) return;
+      return res.status(404).json({ error: "Drawing not found", message: "Drawing does not exist" });
+    }
+
+    const drawing = await prisma.drawing.findUnique({
+      where: { id },
+      select: { files: true },
+    });
+    if (!drawing) {
+      return res.status(404).json({ error: "Drawing not found", message: "Drawing does not exist" });
+    }
+
+    const files = parseJsonField<Record<string, any>>(drawing.files, {});
+    const fileRecord = files?.[fileId];
+    if (!fileRecord || typeof fileRecord !== "object") {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Backward-compatible fallback for inlined files when object storage is disabled.
+    if (typeof fileRecord.dataURL === "string" && fileRecord.dataURL.startsWith("data:")) {
+      const match = /^data:([^;,]+);base64,(.+)$/i.exec(fileRecord.dataURL);
+      if (!match) return res.status(404).json({ error: "File not found" });
+      const mimeType = match[1] || "application/octet-stream";
+      const body = Buffer.from(match[2] || "", "base64");
+      res.setHeader("Content-Type", mimeType);
+      res.setHeader("Cache-Control", "private, max-age=300");
+      return res.send(body);
+    }
+
+    try {
+      const loaded = await s3ImageStore.getExternalFileBuffer(fileRecord);
+      if (!loaded) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      res.setHeader("Content-Type", loaded.mimeType);
+      res.setHeader("Cache-Control", "private, max-age=300");
+      if (loaded.etag) res.setHeader("ETag", loaded.etag);
+      return res.send(loaded.body);
+    } catch (error) {
+      console.error("Failed to fetch drawing file from object storage", {
+        drawingId: id,
+        fileId,
+        error,
+      });
+      return res.status(502).json({
+        error: "File storage error",
+        message: "Failed to retrieve file from object storage",
+      });
+    }
+  }));
+
   app.post("/drawings", requireAuth, asyncHandler(async (req, res) => {
     if (!req.user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -398,6 +456,10 @@ export const registerDrawingRoutes = (
       await ensureTrashCollection(prisma, req.user.id);
     }
 
+    const externalizedFilesResult = await s3ImageStore.externalizeFiles(
+      (payload.files ?? {}) as Record<string, any>
+    );
+
     const newDrawing = await prisma.drawing.create({
       data: {
         name: drawingName,
@@ -406,7 +468,7 @@ export const registerDrawingRoutes = (
         userId: req.user.id,
         collectionId: targetCollectionId,
         preview: payload.preview ?? null,
-        files: JSON.stringify(payload.files ?? {}),
+        files: JSON.stringify(externalizedFilesResult.files),
       },
     });
     invalidateDrawingsCache();
@@ -463,7 +525,12 @@ export const registerDrawingRoutes = (
     if (payload.name !== undefined) data.name = payload.name;
     if (payload.elements !== undefined) data.elements = JSON.stringify(payload.elements);
     if (payload.appState !== undefined) data.appState = JSON.stringify(payload.appState);
-    if (payload.files !== undefined) data.files = JSON.stringify(payload.files);
+    if (payload.files !== undefined) {
+      const externalizedFilesResult = await s3ImageStore.externalizeFiles(
+        payload.files as Record<string, any>
+      );
+      data.files = JSON.stringify(externalizedFilesResult.files);
+    }
     if (payload.preview !== undefined) data.preview = payload.preview;
 
     if (payload.collectionId !== undefined) {

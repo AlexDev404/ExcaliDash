@@ -1,6 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { Prisma, PrismaClient } from "../../generated/client";
+import { S3ImageStore } from "../../storage/s3ImageStore";
 
 export type SortField = "name" | "createdAt" | "updatedAt";
 export type SortDirection = "asc" | "desc";
@@ -53,4 +54,5 @@ export type DashboardRouteDeps = {
     enableAuditLogging: boolean;
   };
   logAuditEvent: LogAuditEvent;
+  s3ImageStore: S3ImageStore;
 };

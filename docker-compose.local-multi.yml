@@ -26,6 +26,14 @@ services:
       - TRUST_PROXY=false
       - JWT_SECRET=local-basic-jwt-secret-32-chars-min-0001
       - CSRF_SECRET=local-basic-csrf-secret-32-chars-0001
+      - ENABLE_S3_IMAGE_STORAGE=${ENABLE_S3_IMAGE_STORAGE:-false}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_REGION=${S3_REGION:-us-east-1}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
+      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
+      - S3_KEY_PREFIX=${S3_KEY_PREFIX:-excalidash-images}
     volumes:
       - backend-basic-data:/app/prisma
     networks:
@@ -65,6 +73,14 @@ services:
       - OIDC_CLIENT_SECRET=excalidash-secret
       - OIDC_REDIRECT_URI=http://localhost:1002/api/auth/oidc/callback
       - OIDC_REQUIRE_EMAIL_VERIFIED=false
+      - ENABLE_S3_IMAGE_STORAGE=${ENABLE_S3_IMAGE_STORAGE:-false}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_REGION=${S3_REGION:-us-east-1}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
+      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
+      - S3_KEY_PREFIX=${S3_KEY_PREFIX:-excalidash-images}
     volumes:
       - backend-oidc-data:/app/prisma
     depends_on:
@@ -107,6 +123,14 @@ services:
       - OIDC_CLIENT_SECRET=excalidash-secret
       - OIDC_REDIRECT_URI=http://localhost:1003/api/auth/oidc/callback
       - OIDC_REQUIRE_EMAIL_VERIFIED=false
+      - ENABLE_S3_IMAGE_STORAGE=${ENABLE_S3_IMAGE_STORAGE:-false}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_REGION=${S3_REGION:-us-east-1}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
+      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
+      - S3_KEY_PREFIX=${S3_KEY_PREFIX:-excalidash-images}
     volumes:
       - backend-hybrid-data:/app/prisma
     depends_on:

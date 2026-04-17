@@ -5,6 +5,7 @@ import JSZip from "jszip";
 import { z } from "zod";
 import { Prisma, PrismaClient } from "../../generated/client";
 import { sanitizeDrawingData } from "../../security";
+import { S3ImageStore } from "../../storage/s3ImageStore";
 
 export class ImportValidationError extends Error {
   status: number;
@@ -72,6 +73,7 @@ export type RegisterImportExportDeps = {
   MAX_IMPORT_MANIFEST_BYTES: number;
   MAX_IMPORT_DRAWING_BYTES: number;
   MAX_IMPORT_TOTAL_EXTRACTED_BYTES: number;
+  s3ImageStore: S3ImageStore;
 };
 
 const getZipEntries = (zip: JSZip) => Object.values(zip.files).filter((entry) => !entry.dir);

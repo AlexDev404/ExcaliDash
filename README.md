@@ -372,6 +372,19 @@ Base values are documented in `backend/.env.example`. Common ones to care about:
 | `CSRF_SECRET`            | `change-this-secret`      | Recommended in production so CSRF validation remains stable across restarts.        |
 | `AUTH_MODE`              | `local`                   | `local`, `hybrid`, `oidc_enforced`.                                                 |
 | `ENFORCE_HTTPS_REDIRECT` | `true`                    | Set to `false` to disable the built-in HTTP→HTTPS redirect when your outer gateway handles it. |
+| `ENABLE_S3_IMAGE_STORAGE` | `false`                  | Opt-in: externalize embedded drawing image payloads to S3-compatible object storage. |
+| `S3_ENDPOINT`            | `http://localhost:8333`   | S3-compatible endpoint URL (for example SeaweedFS, MinIO, or cloud S3 endpoint).    |
+| `S3_BUCKET`              | `excalidash-images-test`  | Bucket used for externalized drawing image blobs.                                    |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | _required when enabled_ | Credentials for object storage access.                                 |
+| `S3_FORCE_PATH_STYLE`    | `true`                    | Keep `true` for most self-hosted S3-compatible services (including local SeaweedFS). |
+| `S3_KEY_PREFIX`          | `excalidash-images`       | Prefix for object keys inside the configured bucket.                                 |
+
+When enabling external image storage on an existing instance, run:
+
+```bash
+cd backend
+npm run storage:migrate-images
+```
 
 </details>
 

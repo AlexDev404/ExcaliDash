@@ -104,6 +104,20 @@ const getImageDimensions = (file: File): Promise<{ width: number; height: number
     image.src = objectUrl;
   });
 
+const readBlobAsDataURL = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error || new Error("Failed to read file blob"));
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("Failed to read file blob"));
+        return;
+      }
+      resolve(reader.result);
+    };
+    reader.readAsDataURL(blob);
+  });
+
 const loadDroppedImageData = async (file: File): Promise<DroppedImageData> => {
   const [rawDataURL, dimensions] = await Promise.all([
     readFileAsDataURL(file),
@@ -249,6 +263,7 @@ export const Editor: React.FC = () => {
   const lastPersistedElementsRef = useRef<readonly any[]>([]);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const patchedAddFilesApisRef = useRef<WeakSet<object>>(new WeakSet());
+  const isHydratingExternalFilesRef = useRef(false);
   const suspiciousBlankLoadRef = useRef(false);
   const hasSceneChangesSinceLoadRef = useRef(false);
   const lastLocalChangeAtRef = useRef<number>(0);
@@ -757,6 +772,70 @@ export const Editor: React.FC = () => {
         color: self.color
       });
       lastCursorEmit.current = now;
+    }
+  }, [id]);
+
+  const hydrateExternalFiles = useCallback(async () => {
+    if (!id || !excalidrawAPI.current || isHydratingExternalFilesRef.current) return;
+
+    const currentFiles = latestFilesRef.current || {};
+    const externalFileIds = Object.entries(currentFiles)
+      .filter(([, value]) => {
+        const file = value as any;
+        return (
+          file &&
+          typeof file === "object" &&
+          file.externalStorage?.provider === "s3" &&
+          typeof file.dataURL !== "string"
+        );
+      })
+      .map(([fileId]) => fileId);
+
+    if (externalFileIds.length === 0) return;
+
+    isHydratingExternalFilesRef.current = true;
+    try {
+      await Promise.allSettled(
+        externalFileIds.map(async (fileId) => {
+          const response = await fetch(
+            `${api.API_URL}/drawings/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}`,
+            { credentials: "include" }
+          );
+          if (!response.ok) return;
+
+          const blob = await response.blob();
+          const dataURL = await readBlobAsDataURL(blob);
+          const previous = (latestFilesRef.current || currentFiles)[fileId] || {};
+          const hydrated = {
+            ...previous,
+            id: typeof previous.id === "string" ? previous.id : fileId,
+            mimeType:
+              typeof previous.mimeType === "string" && previous.mimeType.length > 0
+                ? previous.mimeType
+                : blob.type || "application/octet-stream",
+            dataURL,
+          };
+
+          if (!excalidrawAPI.current) return;
+
+          // Progressive hydration: add each image as soon as it finishes downloading.
+          isSyncing.current = true;
+          try {
+            excalidrawAPI.current.addFiles([hydrated]);
+          } finally {
+            isSyncing.current = false;
+          }
+
+          const mergedFiles = {
+            ...latestFilesRef.current,
+            [fileId]: hydrated,
+          };
+          latestFilesRef.current = mergedFiles;
+          lastSyncedFilesRef.current = mergedFiles;
+        })
+      );
+    } finally {
+      isHydratingExternalFilesRef.current = false;
     }
   }, [id]);
 
@@ -1377,6 +1456,11 @@ export const Editor: React.FC = () => {
     location.search,
     location.hash,
   ]);
+
+  useEffect(() => {
+    if (!isReady || !id) return;
+    void hydrateExternalFiles();
+  }, [isReady, id, initialData, hydrateExternalFiles]);
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {

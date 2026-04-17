@@ -26,6 +26,16 @@ interface Config {
   enforceHttpsRedirect: boolean;
   bootstrapSetupCodeTtlMs: number;
   bootstrapSetupCodeMaxAttempts: number;
+  s3ImageStorage: {
+    enabled: boolean;
+    endpoint: string | null;
+    region: string;
+    bucket: string | null;
+    accessKeyId: string | null;
+    secretAccessKey: string | null;
+    forcePathStyle: boolean;
+    keyPrefix: string;
+  };
 }
 
 export type AuthMode = "local" | "hybrid" | "oidc_enforced";
@@ -287,6 +297,45 @@ const resolveOidcConfig = (authMode: AuthMode): OidcConfig => {
 
 const resolvedAuthMode = parseAuthMode(process.env.AUTH_MODE);
 
+const resolveS3ImageStorageConfig = () => {
+  const enabled = getOptionalBoolean("ENABLE_S3_IMAGE_STORAGE", false);
+  const endpoint = getOptionalTrimmedEnv("S3_ENDPOINT");
+  const region = getOptionalEnv("S3_REGION", "us-east-1");
+  const bucket = getOptionalTrimmedEnv("S3_BUCKET");
+  const accessKeyId = getOptionalTrimmedEnv("S3_ACCESS_KEY_ID");
+  const secretAccessKey = getOptionalTrimmedEnv("S3_SECRET_ACCESS_KEY");
+  const forcePathStyle = getOptionalBoolean("S3_FORCE_PATH_STYLE", true);
+  const keyPrefixRaw = getOptionalEnv("S3_KEY_PREFIX", "excalidash-images");
+  const keyPrefix = keyPrefixRaw
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "")
+    .trim();
+
+  if (enabled) {
+    const missing: string[] = [];
+    if (!endpoint) missing.push("S3_ENDPOINT");
+    if (!bucket) missing.push("S3_BUCKET");
+    if (!accessKeyId) missing.push("S3_ACCESS_KEY_ID");
+    if (!secretAccessKey) missing.push("S3_SECRET_ACCESS_KEY");
+    if (missing.length > 0) {
+      throw new Error(
+        `ENABLE_S3_IMAGE_STORAGE=true requires: ${missing.join(", ")}`
+      );
+    }
+  }
+
+  return {
+    enabled,
+    endpoint,
+    region,
+    bucket,
+    accessKeyId,
+    secretAccessKey,
+    forcePathStyle,
+    keyPrefix: keyPrefix || "excalidash-images",
+  };
+};
+
 export const config: Config = {
   port: getRequiredEnvNumber("PORT", 8000),
   nodeEnv: getOptionalEnv("NODE_ENV", "development"),
@@ -306,6 +355,7 @@ export const config: Config = {
   enforceHttpsRedirect: getOptionalBoolean("ENFORCE_HTTPS_REDIRECT", true),
   bootstrapSetupCodeTtlMs: getRequiredEnvNumber("BOOTSTRAP_SETUP_CODE_TTL_MS", 15 * 60 * 1000),
   bootstrapSetupCodeMaxAttempts: getRequiredEnvNumber("BOOTSTRAP_SETUP_CODE_MAX_ATTEMPTS", 10),
+  s3ImageStorage: resolveS3ImageStorageConfig(),
 };
 
 if (config.nodeEnv === "production") {

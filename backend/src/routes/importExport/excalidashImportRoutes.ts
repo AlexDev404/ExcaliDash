@@ -67,6 +67,7 @@ export const registerExcalidashImportRoutes = (deps: RegisterImportExportDeps) =
     MAX_IMPORT_MANIFEST_BYTES,
     MAX_IMPORT_DRAWING_BYTES,
     MAX_IMPORT_TOTAL_EXTRACTED_BYTES,
+    s3ImageStore,
   } = deps;
 
   app.post("/import/excalidash/verify", requireAuth, upload.single("archive"), asyncHandler(async (req, res) => {
@@ -391,6 +392,9 @@ export const registerExcalidashImportRoutes = (deps: RegisterImportExportDeps) =
         };
 
         for (const prepared of preparedDrawings) {
+          const externalizedFilesResult = await s3ImageStore.externalizeFiles(
+            (prepared.sanitized.files || {}) as Record<string, any>
+          );
           const targetCollectionId = resolveCollectionId(prepared.collectionId);
           const existing = await tx.drawing.findUnique({ where: { id: prepared.id } });
           if (!existing) {
@@ -400,7 +404,7 @@ export const registerExcalidashImportRoutes = (deps: RegisterImportExportDeps) =
                 name: prepared.name,
                 elements: JSON.stringify(prepared.sanitized.elements),
                 appState: JSON.stringify(prepared.sanitized.appState),
-                files: JSON.stringify(prepared.sanitized.files || {}),
+                files: JSON.stringify(externalizedFilesResult.files),
                 preview: prepared.sanitized.preview ?? null,
                 version: prepared.version ?? 1,
                 userId: req.user!.id,
@@ -418,7 +422,7 @@ export const registerExcalidashImportRoutes = (deps: RegisterImportExportDeps) =
                 name: prepared.name,
                 elements: JSON.stringify(prepared.sanitized.elements),
                 appState: JSON.stringify(prepared.sanitized.appState),
-                files: JSON.stringify(prepared.sanitized.files || {}),
+                files: JSON.stringify(externalizedFilesResult.files),
                 preview: prepared.sanitized.preview ?? null,
                 version: prepared.version ?? existing.version,
                 collectionId: targetCollectionId,
@@ -435,7 +439,7 @@ export const registerExcalidashImportRoutes = (deps: RegisterImportExportDeps) =
               name: prepared.name,
               elements: JSON.stringify(prepared.sanitized.elements),
               appState: JSON.stringify(prepared.sanitized.appState),
-              files: JSON.stringify(prepared.sanitized.files || {}),
+              files: JSON.stringify(externalizedFilesResult.files),
               preview: prepared.sanitized.preview ?? null,
               version: prepared.version ?? 1,
               userId: req.user!.id,

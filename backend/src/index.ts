@@ -37,6 +37,7 @@ import {
   getHttpsRedirectUrl,
 } from "./server/httpsRedirectPolicy";
 import { issueBootstrapSetupCodeIfRequired } from "./auth/bootstrapSetupCode";
+import { S3ImageStore } from "./storage/s3ImageStore";
 
 const backendRoot = path.resolve(__dirname, "../");
 console.log("Resolved DATABASE_URL:", process.env.DATABASE_URL);
@@ -113,6 +114,7 @@ const initializeUploadDir = async () => {
 };
 
 const app = express();
+const s3ImageStore = new S3ImageStore(config.s3ImageStorage);
 
 const trustProxyConfig = (process.env.TRUST_PROXY ?? "false").trim();
 const parsedProxyHops = Number.parseInt(trustProxyConfig, 10);
@@ -628,6 +630,7 @@ registerDashboardRoutes(app, {
   MAX_PAGE_SIZE,
   config,
   logAuditEvent,
+  s3ImageStore,
 });
 
 registerImportExportRoutes({
@@ -652,6 +655,7 @@ registerImportExportRoutes({
   MAX_IMPORT_MANIFEST_BYTES,
   MAX_IMPORT_DRAWING_BYTES,
   MAX_IMPORT_TOTAL_EXTRACTED_BYTES,
+  s3ImageStore,
 });
 
 app.use(errorHandler);
