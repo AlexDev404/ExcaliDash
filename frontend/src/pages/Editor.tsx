@@ -1,38 +1,38 @@
-import React, { useCallback, useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Download, Loader2, ChevronUp, ChevronDown, Share2 } from 'lucide-react';
-import clsx from 'clsx';
 import {
-  Excalidraw,
-  convertToExcalidrawElements,
-  exportToSvg,
-  viewportCoordsToSceneCoords,
+    Excalidraw,
+    convertToExcalidrawElements,
+    exportToSvg,
+    viewportCoordsToSceneCoords,
 } from '@excalidraw/excalidraw';
+import clsx from 'clsx';
 import debounce from 'lodash/debounce';
 import throttle from 'lodash/throttle';
+import { ArrowLeft, ChevronDown, ChevronUp, Download, Loader2, Share2 } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Socket, io } from 'socket.io-client';
 import { Toaster, toast } from 'sonner';
-import { io, Socket } from 'socket.io-client';
-import type { UserIdentity } from '../utils/identity';
-import { useAuth } from '../context/AuthContext';
-import { exportFromEditor } from '../utils/exportUtils';
-import { compressDroppedImagePayload, compressExcalidrawFiles } from '../utils/imageCompression';
 import * as api from '../api';
+import { ShareModal } from '../components/ShareModal';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import {
-  buildRemoteSceneUpdate,
-  getPersistedAppState,
-  UIOptions,
-  getFilesDelta,
-  hasRenderableElements,
-  haveSameElements,
-  isSuspiciousEmptySnapshot,
-  isStaleEmptySnapshot,
-  isStaleNonRenderableSnapshot,
-} from './editor/shared';
+import { exportFromEditor } from '../utils/exportUtils';
+import type { UserIdentity } from '../utils/identity';
+import { compressDroppedImagePayload, compressExcalidrawFiles } from '../utils/imageCompression';
 import type { ElementVersionInfo } from './editor/shared';
+import {
+    UIOptions,
+    buildRemoteSceneUpdate,
+    getFilesDelta,
+    getPersistedAppState,
+    hasRenderableElements,
+    haveSameElements,
+    isStaleEmptySnapshot,
+    isStaleNonRenderableSnapshot,
+    isSuspiciousEmptySnapshot,
+} from './editor/shared';
 import { useEditorChrome } from './editor/useEditorChrome';
 import { useEditorIdentity } from './editor/useEditorIdentity';
-import { ShareModal } from '../components/ShareModal';
 
 interface Peer extends UserIdentity {
   isActive: boolean;
@@ -1809,7 +1809,7 @@ export const Editor: React.FC = () => {
           <div className="flex items-center">
             <div className="relative group">
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-semibold text-white shadow-sm"
                 style={{ backgroundColor: me.color }}
               >
                 {me.initials}
@@ -1828,7 +1828,7 @@ export const Editor: React.FC = () => {
                   className="relative group"
                 >
                   <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm transition-all duration-300 ${!peer.isActive ? 'opacity-30 grayscale' : ''}`}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-semibold text-white shadow-sm transition-all duration-300 ${!peer.isActive ? 'opacity-30 grayscale' : ''}`}
                     style={{ backgroundColor: peer.color }}
                   >
                     {peer.initials}
@@ -1854,7 +1854,7 @@ export const Editor: React.FC = () => {
         {loadError ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white dark:bg-neutral-950 px-6">
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                 Unable to open drawing
               </h2>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -1863,7 +1863,7 @@ export const Editor: React.FC = () => {
             </div>
             <button
               onClick={() => navigate('/')}
-              className="px-4 py-2 rounded-lg border-2 border-black dark:border-neutral-700 bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-semibold hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+              className="px-4 py-2 rounded-lg border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-semibold hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
             >
               Back to dashboard
             </button>

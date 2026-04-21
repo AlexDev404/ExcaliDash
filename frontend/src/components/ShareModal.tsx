@@ -1,19 +1,19 @@
-import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import clsx from "clsx";
 import {
-  X,
-  Plus,
-  Link as LinkIcon,
   AlertTriangle,
-  Globe,
-  Lock,
-  ChevronDown,
   Calendar,
-  Shield,
   Check,
+  ChevronDown,
+  Globe,
+  Link as LinkIcon,
+  Lock,
+  Plus,
   RefreshCw,
   Search,
+  Shield,
+  X,
 } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "../api";
 import { useAuth } from "../context/AuthContext";
 
@@ -95,9 +95,9 @@ const CustomSelect: React.FC<{
           setIsOpen(!isOpen);
         }}
         className={clsx(
-          "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm font-bold outline-none",
+          "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm font-semibold outline-none",
           variant === "bordered" 
-            ? "border-2 border-black dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.05)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+            ? "border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm active:shadow-none"
             : "hover:bg-gray-100 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-300"
         )}
       >
@@ -108,7 +108,7 @@ const CustomSelect: React.FC<{
 
       {isOpen && (
         <div className={clsx(
-          "absolute top-full z-[100] mt-1.5 min-w-[140px] bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.1)] overflow-hidden animate-in fade-in zoom-in-95 duration-100",
+          "absolute top-full z-[100] mt-1.5 min-w-[140px] bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-xl shadow overflow-hidden animate-in fade-in zoom-in-95 duration-100",
           align === "right" ? "right-0" : "left-0"
         )}>
           {options.map((opt) => (
@@ -122,7 +122,7 @@ const CustomSelect: React.FC<{
                 setIsOpen(false);
               }}
               className={clsx(
-                "w-full text-left px-3 py-2 text-xs font-bold transition-colors flex items-center justify-between border-b last:border-b-0 border-slate-100 dark:border-neutral-800",
+                "w-full text-left px-3 py-2 text-xs font-semibold transition-colors flex items-center justify-between border-b last:border-b-0 border-slate-100 dark:border-neutral-800",
                 opt.value === value && showCheck
                   ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400" 
                   : opt.danger
@@ -353,14 +353,14 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative w-full max-w-[420px] bg-white dark:bg-neutral-900 rounded-[20px] border-2 border-black dark:border-neutral-700 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.05)] flex flex-col animate-in fade-in zoom-in-95 duration-200">
-        <div className="px-5 py-3.5 flex items-center justify-between border-b-2 border-black dark:border-neutral-700">
-          <h2 className="text-base font-black text-slate-800 dark:text-neutral-100 truncate pr-4" title={drawingName}>
+      <div className="relative w-full max-w-[420px] bg-white dark:bg-neutral-900 rounded-[20px] border border-gray-200 dark:border-neutral-700 shadow-lg flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className="px-5 py-3.5 flex items-center justify-between border-b-2 border-black/25 dark:border-neutral-700">
+          <h2 className="text-basefont-semibold text-slate-800 dark:text-neutral-100 truncate pr-4" title={drawingName}>
             Share "{drawingName}"
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg border-2 border-transparent hover:border-black dark:hover:border-neutral-600 transition-all group shrink-0"
+            className="p-1.5 rounded-lg border-[1px] border-transparent hover:border-black/25 dark:hover:border-neutral-600 transition-all group shrink-0"
           >
             <X size={16} strokeWidth={3} className="group-hover:rotate-90 transition-transform duration-200" />
           </button>
@@ -368,7 +368,7 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
 
         <div className="flex-1 px-5 py-5 space-y-5 overflow-visible">
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 border-2 border-rose-600 dark:border-rose-500 text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 border-[1px] border-rose-600 dark:border-rose-500 text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-3">
               <AlertTriangle size={16} strokeWidth={3} />
               {error}
             </div>
@@ -383,24 +383,24 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
                 value={userQuery}
                 onChange={(e) => setUserQuery(e.target.value)}
                 placeholder="Add people"
-                className="w-full pl-10 pr-4 py-2 rounded-xl border-2 border-black dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 focus:outline-none focus:ring-0 focus:border-indigo-600 dark:focus:border-indigo-500 transition-all text-sm font-bold placeholder:text-slate-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.05)]"
+                className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 focus:outline-none focus:ring-0 focus:border-indigo-600 dark:focus:border-indigo-500 transition-all text-sm font-semibold placeholder:text-slate-400 shadow-sm"
               />
             </div>
 
             {userResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 border-2 border-black dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-900 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.1)] overflow-hidden z-[200] animate-in fade-in slide-in-from-top-2">
+              <div className="absolute top-full left-0 right-0 mt-2 border border-gray-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-900 shadow-lg overflow-hidden z-[200] animate-in fade-in slide-in-from-top-2">
                 {userResults.map((u) => (
                   <button
                     key={u.id}
                     onClick={() => handleAddUser(u.id)}
                     className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors group border-b last:border-b-0 border-slate-100 dark:border-neutral-800"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-black text-xs border-2 border-black dark:border-neutral-600">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-700 dark:text-indigo-300font-semibold text-xs border-[1px] border-black/25 dark:border-neutral-600">
                       {u.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-black text-slate-900 dark:text-neutral-100 truncate">{u.name}</div>
-                      <div className="text-[10px] font-bold text-slate-500 dark:text-neutral-400 truncate">{u.email}</div>
+                      <div className="text-xsfont-semibold text-slate-900 dark:text-neutral-100 truncate">{u.name}</div>
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-neutral-400 truncate">{u.email}</div>
                     </div>
                     <Plus size={16} className="text-slate-400 group-hover:text-indigo-600 transition-colors" strokeWidth={3} />
                   </button>
@@ -410,30 +410,30 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
           </section>
 
           <section className="space-y-2">
-            <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-neutral-500 px-1">People with access</h3>
+            <h3 className="text-[9px]font-semibold uppercase tracking-[0.1em] text-slate-400 dark:text-neutral-500 px-1">People with access</h3>
             
             <div className="space-y-0">
               <div className="flex items-center gap-3 px-1 py-1.5">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-600 dark:text-neutral-300 font-black text-sm border-2 border-black dark:border-neutral-600 shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-600 dark:text-neutral-300font-semibold text-sm border-[1px] border-black/25 dark:border-neutral-600 shrink-0">
                   {user?.name?.charAt(0).toUpperCase() || "U"}
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                  <div className="text-xs font-black text-slate-900 dark:text-neutral-100 leading-tight">
-                    {user?.name} <span className="text-slate-400 dark:text-neutral-500 font-bold ml-1">(you)</span>
+                  <div className="text-xsfont-semibold text-slate-900 dark:text-neutral-100 leading-tight">
+                    {user?.name} <span className="text-slate-400 dark:text-neutral-500 font-semibold ml-1">(you)</span>
                   </div>
-                  <div className="text-[10px] font-bold text-slate-500 dark:text-neutral-400 mt-0.5">{user?.email}</div>
+                  <div className="text-[10px] font-semibold text-slate-500 dark:text-neutral-400 mt-0.5">{user?.email}</div>
                 </div>
-                <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-neutral-500 pr-1 shrink-0">Owner</div>
+                <div className="text-[8px]font-semibold uppercase tracking-widest text-slate-400 dark:text-neutral-500 pr-1 shrink-0">Owner</div>
               </div>
 
               {(sharing?.permissions || []).map((p) => (
                 <div key={p.id} className="flex items-center gap-3 px-1 py-1.5 group">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-sm border-2 border-indigo-600 dark:border-indigo-500 shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400font-semibold text-sm border-[1px] border-indigo-600 dark:border-indigo-500 shrink-0">
                     {p.granteeUser.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="text-xs font-black text-slate-900 dark:text-neutral-100 leading-tight truncate">{p.granteeUser.name}</div>
-                    <div className="text-[10px] font-bold text-slate-500 dark:text-neutral-400 mt-0.5 truncate">{p.granteeUser.email}</div>
+                    <div className="text-xsfont-semibold text-slate-900 dark:text-neutral-100 leading-tight truncate">{p.granteeUser.name}</div>
+                    <div className="text-[10px] font-semibold text-slate-500 dark:text-neutral-400 mt-0.5 truncate">{p.granteeUser.email}</div>
                   </div>
                   <div className="shrink-0 flex items-center h-full">
                     <CustomSelect
@@ -459,12 +459,12 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
             </div>
           </section>
 
-          <section className="pt-5 border-t-2 border-black dark:border-neutral-700">
-            <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-neutral-500 px-1 mb-3">General access</h3>
+          <section className="pt-5 border-t-2 border-black/25 dark:border-neutral-700">
+            <h3 className="text-[9px]font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-neutral-500 px-1 mb-3">General access</h3>
             
             <div className="flex items-start gap-4 px-1">
               <div className={clsx(
-                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border-2 transition-all mt-0.5",
+                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border-[1px] transition-all mt-0.5",
                 activeLink 
                   ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-600 dark:border-emerald-500 shadow-[2px_2px_0px_0px_rgba(5,150,105,0.2)]" 
                   : "bg-slate-50 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 border-slate-400 dark:border-neutral-600"
@@ -489,7 +489,7 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
                   />
                 </div>
                 
-                <p className="text-[11px] font-bold text-slate-500 dark:text-neutral-400 leading-snug px-0.5">
+                <p className="text-[11px] font-semibold text-slate-500 dark:text-neutral-400 leading-snug px-0.5">
                   {activeLink 
                     ? "Anyone on the internet with the link can access." 
                     : "Only people with access can open with the link."}
@@ -497,7 +497,7 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
 
                 {activeLink && (
                   <div className="pt-3.5 space-y-3.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <p className="text-[9px] font-black text-slate-500 dark:text-neutral-400 px-0.5">
+                    <p className="text-[9px]font-semibold text-slate-500 dark:text-neutral-400 px-0.5">
                       {formatAutoDisableText(activeLink.expiresAt)}
                       {" "}When it disables, General access switches back to Restricted.
                     </p>
@@ -534,15 +534,15 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
                         value={customExpiry}
                         onChange={(e) => setCustomExpiry(e.target.value)}
                         onBlur={() => void handleUpdateLink()}
-                        className="w-full px-3 py-1.5 rounded-xl border-2 border-black dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-[10px] font-black focus:outline-none focus:border-indigo-600 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.05)]"
+                        className="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-[10px]font-semibold focus:outline-none focus:border-indigo-600 transition-all shadow-sm"
                       />
                     )}
 
                     {linkPermission === "edit" && (
-                      <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border-2 border-amber-500 space-y-1.5 shadow-[2px_2px_0px_0px_rgba(245,158,11,0.2)]">
+                      <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border-[1px] border-amber-500 space-y-1.5 shadow-[2px_2px_0px_0px_rgba(245,158,11,0.2)]">
                         <div className="flex items-start gap-2">
                            <AlertTriangle size={14} strokeWidth={3} className="text-amber-600 shrink-0 mt-0.5" />
-                           <div className="text-[10px] text-amber-900 dark:text-amber-200 font-black leading-relaxed">
+                           <div className="text-[10px] text-amber-900 dark:text-amber-200font-semibold leading-relaxed">
                              <span className="uppercase tracking-[0.1em] text-[8px]">Security Warning</span><br/>
                              Edit access via link is sensitive.
                            </div>
@@ -556,15 +556,15 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
           </section>
         </div>
 
-        <div className="px-5 py-5 flex items-center justify-between border-t-2 border-black dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800/50 rounded-b-[18px]">
+        <div className="px-5 py-5 flex items-center justify-between border-t-2 border-black/25 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800/50 rounded-b-[18px]">
           <button
             onClick={() => handleCopy(currentLinkUrl)}
             disabled={!activeLink}
             className={clsx(
-              "flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all active:translate-x-[1px] active:translate-y-[1px]",
+              "flex items-center gap-2 px-4 py-2.5 rounded-xl border-[1px]font-semibold text-[10px] uppercase tracking-widest transition-all active:translate-x-[1px] active:translate-y-[1px]",
               isCopied 
-                ? "bg-emerald-500 text-white border-black shadow-none translate-x-[1px] translate-y-[1px]" 
-                : "bg-white dark:bg-neutral-900 border-black dark:border-neutral-600 text-indigo-600 dark:text-indigo-400 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.05)] hover:-translate-y-0.5",
+                ? "bg-emerald-500 text-white border-black/25 shadow-none translate-x-[1px] translate-y-[1px]" 
+                : "bg-white dark:bg-neutral-900 border-black/25 dark:border-neutral-600 text-indigo-600 dark:text-indigo-400 shadow",
               !activeLink && "opacity-40 grayscale cursor-not-allowed shadow-none"
             )}
           >
@@ -574,7 +574,7 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
           
           <button
             onClick={onClose}
-            className="px-8 py-2.5 rounded-xl bg-indigo-600 dark:bg-indigo-500 text-white border-2 border-black font-black text-[10px] uppercase tracking-[0.2em] hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            className="px-8 py-2.5 rounded-xl bg-indigo-600 dark:bg-indigo-500 text-white border-[1px] border-black/25 font-semibold text-[10px] uppercase tracking-[0.2em] hover:shadow-md active:translate-y-0 transition-all"
           >
             DONE
           </button>
@@ -582,7 +582,7 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
 
         {isLoading && (
           <div className="absolute inset-0 bg-white/20 dark:bg-black/10 backdrop-blur-[1px] flex items-center justify-center z-[300] pointer-events-none rounded-[24px]">
-             <div className="bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 p-5 rounded-2xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+             <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 p-5 rounded-2xl shadow-xl">
                 <RefreshCw size={28} strokeWidth={3} className="animate-spin text-indigo-600 dark:text-indigo-400" />
              </div>
           </div>

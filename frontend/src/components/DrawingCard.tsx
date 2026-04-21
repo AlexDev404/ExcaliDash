@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { PenTool, Trash2, FolderInput, ArrowRight, Check, Clock, Copy, Download, Loader2 } from 'lucide-react';
-import type { DrawingSummary, Collection, Drawing } from '../types';
-import { formatDistanceToNow } from 'date-fns';
 import clsx from 'clsx';
+import { formatDistanceToNow } from 'date-fns';
+import { ArrowRight, Check, Clock, Copy, Download, FolderInput, Loader2, PenTool, Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import type { Collection, Drawing, DrawingSummary } from '../types';
 import { exportDrawingToFile } from '../utils/exportUtils';
 import { previewHasEmbeddedImages } from '../utils/previewSvg';
 
@@ -239,10 +239,10 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
         }}
         onMouseDown={(e) => onMouseDown?.(e, drawing.id)}
         className={clsx(
-          "drawing-card group relative flex flex-col bg-white dark:bg-neutral-900 rounded-2xl border-2 transition-all duration-200 ease-out",
-          !isTrash && "hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)]",
-          isTrash && "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] opacity-80 grayscale-[0.5]",
-          isSelected ? "border-neutral-500 dark:border-neutral-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)]" : "border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]"
+          "drawing-card group relative flex flex-col bg-white dark:bg-neutral-900 rounded-2xl border transition-all duration-200 ease-out",
+          !isTrash && "hover:shadow-md",
+          isTrash && "shadow-sm opacity-80 grayscale-[0.5]",
+          isSelected ? "border-indigo-400 dark:border-indigo-500 shadow-md" : "border-gray-200 dark:border-neutral-700 shadow-sm"
         )}
       >
         <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" style={{ opacity: isSelected ? 1 : undefined }}>
@@ -263,7 +263,7 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
         <div
           onClick={(e) => !isTrash && onClick(drawing.id, e)}
           className={clsx(
-            "aspect-[16/10] bg-slate-50 dark:bg-neutral-800/50 relative overflow-hidden flex items-center justify-center border-b-2 border-black dark:border-neutral-700 rounded-t-xl transition-colors",
+            "aspect-[16/10] bg-slate-50 dark:bg-neutral-800/50 relative overflow-hidden flex items-center justify-center border-b border-gray-200 dark:border-neutral-700 rounded-t-xl transition-colors",
             !isTrash && "cursor-pointer group-hover:bg-neutral-100/30 dark:group-hover:bg-neutral-800",
             isTrash && "cursor-default"
           )}
@@ -301,12 +301,12 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
                 onBlur={() => setIsRenaming(false)}
                 onDragStart={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full px-2 py-1 -ml-2 text-sm sm:text-base font-bold text-slate-900 dark:text-white border-2 border-black dark:border-neutral-600 rounded-lg focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] bg-white dark:bg-neutral-800"
+                className="w-full px-2 py-1 -ml-2 text-sm sm:text-base font-semibold text-slate-900 dark:text-white border border-gray-200 dark:border-neutral-600 rounded-lg focus:outline-none shadow-sm bg-white dark:bg-neutral-800"
               />
             </form>
           ) : (
             <h3
-              className="text-sm sm:text-base font-bold text-slate-800 dark:text-neutral-100 truncate cursor-text select-none group-hover:text-neutral-900 dark:group-hover:text-white transition-colors"
+              className="text-sm sm:text-base font-semibold text-slate-800 dark:text-neutral-100 truncate cursor-text select-none group-hover:text-neutral-900 dark:group-hover:text-white transition-colors"
               title={drawing.name}
               onDoubleClick={(e) => {
                 e.stopPropagation();
@@ -338,7 +338,7 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
                 aria-expanded={showCollectionDropdown}
                 disabled={isShared}
                 className={clsx(
-                  "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide max-w-[120px] truncate transition-all border",
+                  "px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wide max-w-[120px] truncate transition-all border",
                   isShared
                     ? "bg-slate-100 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 border-slate-200 dark:border-neutral-700 cursor-not-allowed"
                     : "bg-slate-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-200 text-slate-500 dark:text-neutral-400 cursor-pointer border-slate-100 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600"
@@ -354,13 +354,13 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
               {!isShared && showCollectionDropdown && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowCollectionDropdown(false)} />
-                  <div className="absolute right-0 bottom-8 w-48 bg-white dark:bg-neutral-900 rounded-xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] z-20 py-1 max-h-56 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
+                  <div className="absolute right-0 bottom-8 w-48 bg-white dark:bg-neutral-900 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-md z-20 py-1 max-h-56 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
                     <button
                       data-testid="collection-option-unorganized"
                       onClick={() => { onMoveToCollection(drawing.id, null); setShowCollectionDropdown(false); }}
                       className={clsx(
                         "w-full px-3 py-2 text-xs text-left flex items-center justify-between hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors",
-                        drawing.collectionId === null ? "text-neutral-900 dark:text-white font-bold bg-neutral-100 dark:bg-neutral-800" : "text-slate-600 dark:text-neutral-400"
+                        drawing.collectionId === null ? "text-neutral-900 dark:text-white font-semibold bg-neutral-100 dark:bg-neutral-800" : "text-slate-600 dark:text-neutral-400"
                       )}
                     >
                       Unorganized
@@ -373,7 +373,7 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
                         onClick={() => { onMoveToCollection(drawing.id, c.id); setShowCollectionDropdown(false); }}
                         className={clsx(
                           "w-full px-3 py-2 text-xs text-left flex items-center justify-between hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors truncate",
-                          drawing.collectionId === c.id ? "text-neutral-900 dark:text-white font-bold bg-neutral-100 dark:bg-neutral-800" : "text-slate-600 dark:text-neutral-400"
+                          drawing.collectionId === c.id ? "text-neutral-900 dark:text-white font-semibold bg-neutral-100 dark:bg-neutral-800" : "text-slate-600 dark:text-neutral-400"
                         )}
                       >
                         <span className="truncate">{c.name}</span>
@@ -396,7 +396,7 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
             onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
           >
             <div
-              className="absolute bg-white dark:bg-neutral-900 rounded-lg border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] py-1 min-w-[160px] animate-in fade-in zoom-in-95 duration-100"
+              className="absolute bg-white dark:bg-neutral-900 rounded-lg border border-gray-200 dark:border-neutral-700 shadow-md py-1 min-w-[160px] animate-in fade-in zoom-in-95 duration-100"
               style={{ top: contextMenu.y, left: contextMenu.x }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -429,7 +429,7 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
                   </button>
 
                   {showMoveSubmenu && (
-                    <div className="absolute left-full top-0 ml-1 w-40 bg-white dark:bg-neutral-900 rounded-lg border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] py-1 max-h-64 overflow-y-auto">
+                    <div className="absolute left-full top-0 ml-1 w-40 bg-white dark:bg-neutral-900 rounded-lg border border-gray-200 dark:border-neutral-700 shadow-md py-1 max-h-64 overflow-y-auto">
                       <button
                         onClick={() => { onMoveToCollection(drawing.id, null); setContextMenu(null); }}
                         className={clsx(

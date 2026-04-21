@@ -1,10 +1,10 @@
+import { AlertTriangle, Shield, ShieldOff } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Shield, ShieldOff } from 'lucide-react';
-import { Logo } from '../components/Logo';
-import { useAuth } from '../context/AuthContext';
 import * as api from '../api';
 import { AuthStatusErrorPanel } from '../components/AuthStatusErrorPanel';
+import { Logo } from '../components/Logo';
+import { useAuth } from '../context/AuthContext';
 
 type Step = 'choice' | 'confirm-disable';
 
@@ -109,7 +109,7 @@ export const AuthSetupChoice: React.FC = () => {
           </p>
         </div>
 
-        <div className="rounded-2xl border-2 border-black dark:border-neutral-700 bg-white dark:bg-neutral-900 p-6 sm:p-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.15)]">
+        <div className="rounded-2xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-6 sm:p-8 shadow-md">
           {error && (
             <div className="mb-5 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-800 dark:text-red-200">
               {error}
@@ -140,7 +140,7 @@ export const AuthSetupChoice: React.FC = () => {
                   onClick={() => {
                     void applyChoice(true);
                   }}
-                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-black bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all disabled:opacity-60"
+                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-black bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-60"
                 >
                   <Shield size={18} />
                   Enable Authentication
@@ -150,7 +150,7 @@ export const AuthSetupChoice: React.FC = () => {
                   type="button"
                   disabled={submitting}
                   onClick={() => setStep('confirm-disable')}
-                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-black bg-white dark:bg-neutral-800 px-4 py-3 text-sm font-bold text-gray-900 dark:text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all disabled:opacity-60"
+                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-black bg-white dark:bg-neutral-800 px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-60"
                 >
                   <ShieldOff size={18} />
                   Keep Disabled
@@ -174,7 +174,7 @@ export const AuthSetupChoice: React.FC = () => {
                   type="button"
                   disabled={submitting}
                   onClick={() => setStep('choice')}
-                  className="rounded-xl border-2 border-black bg-white dark:bg-neutral-800 px-4 py-3 text-sm font-bold text-gray-900 dark:text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all disabled:opacity-60"
+                  className="rounded-xl border-2 border-black bg-white dark:bg-neutral-800 px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-60"
                 >
                   Go Back
                 </button>
@@ -185,7 +185,7 @@ export const AuthSetupChoice: React.FC = () => {
                   onClick={() => {
                     void applyChoice(false);
                   }}
-                  className="rounded-xl border-2 border-black bg-rose-600 px-4 py-3 text-sm font-bold text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all disabled:opacity-60"
+                  className="rounded-xl border-2 border-black bg-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-60"
                 >
                   Confirm Disable Authentication
                 </button>

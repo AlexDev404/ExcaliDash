@@ -1,14 +1,14 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Layout } from '../components/Layout';
-import { DrawingCard } from '../components/DrawingCard';
-import { Plus, Search, Loader2, Inbox, Trash2, Folder, ArrowRight, Copy, Upload, CheckSquare, Square, ArrowUp, ArrowDown, ChevronDown, FileText, Calendar, Clock } from 'lucide-react';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import * as api from '../api';
-import type { DrawingSortField, SortDirection } from '../api';
-import { useDebounce } from '../hooks/useDebounce';
 import clsx from 'clsx';
+import { ArrowDown, ArrowRight, ArrowUp, Calendar, CheckSquare, ChevronDown, Clock, Copy, FileText, Folder, Inbox, Loader2, Plus, Search, Square, Trash2, Upload } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import type { DrawingSortField, SortDirection } from '../api';
+import * as api from '../api';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { DrawingCard } from '../components/DrawingCard';
+import { Layout } from '../components/Layout';
 import { useUpload } from '../context/UploadContext';
+import { useDebounce } from '../hooks/useDebounce';
 import { DragOverlayPortal, getSelectionBounds, type Point, type SelectionBounds } from './dashboard/shared';
 import { useDashboardData } from './dashboard/useDashboardData';
 
@@ -641,7 +641,7 @@ export const Dashboard: React.FC = () => {
             {dragPreviewDrawings.slice(0, 3).map((d, i) => (
               <div
                 key={d.id}
-                className="absolute inset-0 bg-slate-50 border-2 border-black rounded-xl shadow-sm flex items-center justify-center overflow-hidden"
+                className="absolute inset-0 bg-slate-50 border border-gray-200 rounded-xl shadow-sm flex items-center justify-center overflow-hidden"
                 style={{
                   transform: `translate(${i * 4}px, ${i * 4}px)`,
                   zIndex: 3 - i,
@@ -662,7 +662,7 @@ export const Dashboard: React.FC = () => {
               </div>
             ))}
             {dragPreviewDrawings.length > 1 && (
-              <div className="absolute -top-2 -right-2 bg-indigo-600 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm z-50">
+              <div className="absolute -top-2 -right-2 bg-indigo-600 text-white text-xs font-semibold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm z-50">
                 {dragPreviewDrawings.length}
               </div>
             )}
@@ -673,7 +673,7 @@ export const Dashboard: React.FC = () => {
     {isDragSelecting && selectionBounds && (
         <DragOverlayPortal>
           <div
-            className="fixed z-50 pointer-events-none border-2 border-black dark:border-neutral-500 bg-neutral-500/20 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]"
+            className="fixed z-50 pointer-events-none border border-blue-500 dark:border-blue-400 bg-blue-500/10"
             style={{
               left: selectionBounds.left,
               top: selectionBounds.top,
@@ -684,24 +684,24 @@ export const Dashboard: React.FC = () => {
         </DragOverlayPortal>
       )}
 
-      <h1 className="text-3xl sm:text-5xl mb-6 sm:mb-8 text-slate-900 dark:text-white pl-1" style={{ fontFamily: 'Excalifont' }}>
+      <h1 className="text-3xl font-semibold sm:text-5xl mb-6 sm:mb-8 text-slate-900 dark:text-white pl-1">
         {viewTitle}
       </h1>
 
       <div className="mb-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div className="flex flex-1 w-full lg:w-auto gap-3 items-center flex-wrap">
-          <div className="relative flex-1 group max-w-md transition-all duration-200 focus-within:-translate-y-0.5">
+          <div className="relative flex-1 group max-w-md transition-all duration-200">
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search drawings..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-12 py-2.5 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-xl focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:focus:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] placeholder:text-slate-400 dark:placeholder:text-neutral-500 text-sm text-slate-900 dark:text-white"
+              className="w-full pl-10 pr-12 py-2.5 bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 rounded-xl outline-none transition-all shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-400 dark:placeholder:text-neutral-500 text-sm text-slate-900 dark:text-white"
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-neutral-500 group-focus-within:text-indigo-500 dark:group-focus-within:text-neutral-300 transition-colors pointer-events-none" size={18} />
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 -mt-px pointer-events-none">
-              <kbd className="hidden sm:inline-flex items-center h-5 px-1.5 text-[10px] font-bold text-slate-400 dark:text-neutral-600 bg-slate-100 dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 rounded shadow-[0px_2px_0px_0px_rgba(0,0,0,0.05)]">
+              <kbd className="hidden sm:inline-flex items-center h-5 px-1.5 text-[10px] font-semibold text-slate-400 dark:text-neutral-600 bg-slate-100 dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 rounded shadow-[0px_2px_0px_0px_rgba(0,0,0,0.05)]">
                 <span className="text-xs mr-0.5">⌘</span>K
               </kbd>
             </div>
@@ -714,8 +714,8 @@ export const Dashboard: React.FC = () => {
                   setShowSortMenu(!showSortMenu);
                 }}
                 className={clsx(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all border-2 border-black dark:border-neutral-700 whitespace-nowrap h-[42px] w-full sm:w-[180px]",
-                  "bg-white dark:bg-neutral-900 text-slate-700 dark:text-neutral-300 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border border-gray-200 dark:border-neutral-700 whitespace-nowrap h-[42px] w-full sm:w-[180px]",
+                  "bg-white dark:bg-neutral-900 text-slate-700 dark:text-neutral-300 shadow-sm hover:shadow-md hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
                 )}
               >
                 <span className="text-indigo-600 dark:text-indigo-400 flex-shrink-0">{currentSortOption.icon}</span>
@@ -726,7 +726,7 @@ export const Dashboard: React.FC = () => {
               {showSortMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                  <div className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-neutral-800 rounded-lg border-2 border-black dark:border-neutral-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] py-1 min-w-[180px]">
+                  <div className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-neutral-800 rounded-lg border border-gray-200 dark:border-neutral-700 shadow-md py-1 min-w-[180px]">
                     {sortOptions.map((option) => (
                       <button
                         key={option.field}
@@ -737,7 +737,7 @@ export const Dashboard: React.FC = () => {
                         className={clsx(
                           "w-full px-3 py-2 text-sm text-left flex items-center gap-2 transition-colors",
                           sortConfig.field === option.field
-                            ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-bold"
+                            ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold"
                             : "text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700 hover:text-indigo-600 dark:hover:text-indigo-400"
                         )}
                       >
@@ -756,8 +756,8 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={handleSortDirectionToggle}
               className={clsx(
-                "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all border-2 border-black dark:border-neutral-700 h-[42px] min-w-[42px]",
-                "bg-white dark:bg-neutral-900 text-indigo-600 dark:text-indigo-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border border-gray-200 dark:border-neutral-700 h-[42px] min-w-[42px]",
+                "bg-white dark:bg-neutral-900 text-indigo-600 dark:text-indigo-400 shadow-sm hover:shadow-md hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
               )}
               title={sortConfig.direction === 'asc' ? 'Sort Ascending' : 'Sort Descending'}
             >
@@ -776,9 +776,9 @@ export const Dashboard: React.FC = () => {
               onClick={handleSelectAll}
               disabled={sortedDrawings.length === 0}
               className={clsx(
-                "h-[42px] w-[42px] flex items-center justify-center rounded-xl border-2 transition-all",
+                "h-[42px] w-[42px] flex items-center justify-center rounded-xl border transition-all",
                 sortedDrawings.length > 0
-                  ? "bg-white dark:bg-neutral-800 border-black dark:border-neutral-700 text-indigo-600 dark:text-indigo-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                  ? "bg-white dark:bg-neutral-800 border-gray-200 dark:border-neutral-700 text-indigo-600 dark:text-indigo-400 shadow-sm hover:shadow-md hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
                   : "bg-slate-100 dark:bg-neutral-900 border-slate-300 dark:border-neutral-800 text-slate-300 dark:text-neutral-700 cursor-not-allowed"
               )}
               title={allSelected ? "Deselect All" : "Select All"}
@@ -790,9 +790,9 @@ export const Dashboard: React.FC = () => {
             onClick={handleBulkDeleteClick}
             disabled={!hasSelection || isSharedView}
             className={clsx(
-              "h-[42px] w-[42px] flex items-center justify-center rounded-xl border-2 transition-all",
+              "h-[42px] w-[42px] flex items-center justify-center rounded-xl border transition-all",
               hasSelection && !isSharedView
-                ? "bg-white dark:bg-neutral-800 border-black dark:border-neutral-700 text-rose-600 dark:text-rose-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:bg-rose-50 dark:hover:bg-rose-900/30"
+                ? "bg-white dark:bg-neutral-800 border-gray-200 dark:border-neutral-700 text-rose-600 dark:text-rose-400 shadow-sm hover:shadow-md hover:bg-rose-50 dark:hover:bg-rose-900/30"
                 : "bg-slate-100 dark:bg-neutral-900 border-slate-300 dark:border-neutral-800 text-slate-300 dark:text-neutral-700 cursor-not-allowed"
             )}
             title={isTrashView ? "Delete Permanently" : "Move to Trash"}
@@ -804,9 +804,9 @@ export const Dashboard: React.FC = () => {
             onClick={handleBulkDuplicate}
             disabled={!hasSelection || isTrashView || isSharedView}
             className={clsx(
-              "h-[42px] w-[42px] flex items-center justify-center rounded-xl border-2 transition-all",
+              "h-[42px] w-[42px] flex items-center justify-center rounded-xl border transition-all",
               hasSelection && !isTrashView && !isSharedView
-                ? "bg-white dark:bg-neutral-800 border-black dark:border-neutral-700 text-indigo-600 dark:text-indigo-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                ? "bg-white dark:bg-neutral-800 border-gray-200 dark:border-neutral-700 text-indigo-600 dark:text-indigo-400 shadow-sm hover:shadow-md hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
                 : "bg-slate-100 dark:bg-neutral-900 border-slate-300 dark:border-neutral-800 text-slate-300 dark:text-neutral-700 cursor-not-allowed"
             )}
             title="Duplicate Selected"
@@ -819,9 +819,9 @@ export const Dashboard: React.FC = () => {
                 onClick={() => hasSelection && setShowBulkMoveMenu(!showBulkMoveMenu)}
                 disabled={!hasSelection || isSharedView}
                 className={clsx(
-                  "h-[42px] w-[42px] flex items-center justify-center rounded-xl border-2 transition-all",
+                  "h-[42px] w-[42px] flex items-center justify-center rounded-xl border transition-all",
                   hasSelection && !isSharedView
-                    ? "bg-white dark:bg-neutral-800 border-black dark:border-neutral-700 text-emerald-600 dark:text-emerald-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                    ? "bg-white dark:bg-neutral-800 border-gray-200 dark:border-neutral-700 text-emerald-600 dark:text-emerald-400 shadow-sm hover:shadow-md hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
                     : "bg-slate-100 dark:bg-neutral-900 border-slate-300 dark:border-neutral-800 text-slate-300 dark:text-neutral-700 cursor-not-allowed"
                 )}
                 title="Move Selected"
@@ -835,8 +835,8 @@ export const Dashboard: React.FC = () => {
               {showBulkMoveMenu && hasSelection && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowBulkMoveMenu(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-neutral-800 rounded-xl border-2 border-black dark:border-neutral-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] z-50 py-1 max-h-64 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
-                    <div className="px-3 py-2 text-[10px] font-bold uppercase text-slate-400 dark:text-neutral-500 tracking-wider border-b border-slate-100 dark:border-neutral-700 mb-1">
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-md z-50 py-1 max-h-64 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-3 py-2 text-[10px] font-semibold uppercase text-slate-400 dark:text-neutral-500 tracking-wider border-b border-slate-100 dark:border-neutral-700 mb-1">
                       Move {selectedIds.size} items to...
                     </div>
                     <button
@@ -876,10 +876,10 @@ export const Dashboard: React.FC = () => {
             onClick={() => document.getElementById('dashboard-import')?.click()}
             disabled={isTrashView || isSharedView}
             className={clsx(
-              "h-[42px] w-full sm:w-auto flex items-center justify-center gap-2 px-6 rounded-xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] transition-all font-bold text-sm whitespace-nowrap",
+              "h-[42px] w-full sm:w-auto flex items-center justify-center gap-2 px-6 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm transition-all font-semibold text-sm whitespace-nowrap",
               isTrashView || isSharedView
                 ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border-slate-300 dark:border-slate-700 shadow-none cursor-not-allowed"
-                : "bg-emerald-600 dark:bg-neutral-800 text-white hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:active:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]"
+                : "bg-emerald-600 dark:bg-neutral-800 text-white hover:shadow-md hover:bg-emerald-700 dark:hover:bg-neutral-700"
             )}
           >
             <Upload size={18} strokeWidth={2.5} />
@@ -890,10 +890,10 @@ export const Dashboard: React.FC = () => {
             onClick={handleCreateDrawing}
             disabled={isTrashView || isSharedView}
             className={clsx(
-              "h-[42px] w-full sm:w-auto flex items-center justify-center gap-2 px-6 rounded-xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] transition-all font-bold text-sm whitespace-nowrap",
+              "h-[42px] w-full sm:w-auto flex items-center justify-center gap-2 px-6 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm transition-all font-semibold text-sm whitespace-nowrap",
               isTrashView || isSharedView
                 ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border-slate-300 dark:border-slate-700 shadow-none cursor-not-allowed"
-                : "bg-indigo-600 dark:bg-neutral-800 text-white hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:active:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]"
+                : "bg-indigo-600 dark:bg-neutral-800 text-white hover:shadow-md hover:bg-indigo-700 dark:hover:bg-neutral-700"
             )}
           >
             <Plus size={18} strokeWidth={2.5} />
@@ -928,10 +928,10 @@ export const Dashboard: React.FC = () => {
               <Inbox size={56} className="text-indigo-600 hidden sm:block" />
               <Inbox size={44} className="text-indigo-600 sm:hidden" />
             </div>
-            <h3 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2 text-center px-4">Drop files to import</h3>
+            <h3 className="text-2xl sm:text-3xl font-semibold text-slate-800 mb-2 text-center px-4">Drop files to import</h3>
             <p className="text-slate-500 text-base sm:text-lg max-w-sm sm:max-w-md text-center px-4">
               Drop .excalidraw or .json files here to add them to
-              <span className="font-bold text-indigo-600 mx-1">
+              <span className="font-semibold text-indigo-600 mx-1">
                 {viewTitle}
               </span>
             </p>
@@ -1000,7 +1000,7 @@ export const Dashboard: React.FC = () => {
 
         <div ref={loaderRef} className="py-8 flex justify-center items-center h-20">
           {isFetchingMore && (
-            <div className="flex items-center gap-2 text-indigo-600 font-bold animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2 text-indigo-600 font-semibold animate-in fade-in slide-in-from-bottom-2">
               <Loader2 size={24} className="animate-spin" />
               <span>Loading more...</span>
             </div>

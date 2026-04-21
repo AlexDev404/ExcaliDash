@@ -1,13 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
-import { Sidebar } from './Sidebar';
-import { Logo } from './Logo';
-import { UploadStatus } from './UploadStatus';
-import { ImpersonationBanner } from './ImpersonationBanner';
-import { UpdateBanner } from './UpdateBanner';
-import type { Collection } from '../types';
 import clsx from 'clsx';
+import { Menu, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import type { Collection } from '../types';
+import { ImpersonationBanner } from './ImpersonationBanner';
+import { Logo } from './Logo';
+import { Sidebar } from './Sidebar';
+import { UpdateBanner } from './UpdateBanner';
+import { UploadStatus } from './UploadStatus';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -113,7 +113,7 @@ export const Layout: React.FC<LayoutProps> = ({
               <button
                 type="button"
                 onClick={() => setIsSidebarOpen(v => !v)}
-                className="inline-flex items-center justify-center h-11 w-11 rounded-xl border-2 border-black dark:border-neutral-700 bg-white/90 dark:bg-neutral-900/90 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] text-slate-900 dark:text-neutral-200 hover:-translate-y-0.5 transition-all active:translate-y-0 active:shadow-none"
+                className="inline-flex items-center justify-center h-11 w-11 rounded-xl border border-gray-200 dark:border-neutral-700 bg-white/90 dark:bg-neutral-900/90 shadow-sm text-slate-900 dark:text-neutral-200 hover:shadow-md transition-all"
                 title={isSidebarOpen ? 'Close menu' : 'Open menu'}
                 aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
               >
@@ -123,7 +123,7 @@ export const Layout: React.FC<LayoutProps> = ({
               <div className="ml-auto flex items-center gap-2">
                 <Logo className="w-8 h-8" />
                 <span className="text-xl text-slate-900 dark:text-white mt-1" style={{ fontFamily: 'Excalifont' }}>ExcaliDash</span>
-                <span className="text-[10px] font-bold text-red-500 mt-2" style={{ fontFamily: 'sans-serif' }}>BETA</span>
+                <span className="text-[10px] font-semibold text-red-500 mt-2" style={{ fontFamily: 'sans-serif' }}>BETA</span>
               </div>
             </div>
 
@@ -147,7 +147,7 @@ export const Layout: React.FC<LayoutProps> = ({
           <aside
             ref={sidebarRef}
             className={clsx(
-              'fixed inset-y-4 left-2 sm:left-4 z-40 bg-white dark:bg-neutral-900 rounded-2xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] overflow-hidden transition-transform duration-200',
+              'fixed inset-y-4 left-2 sm:left-4 z-40 bg-white dark:bg-neutral-900 rounded-2xl border border-gray-200 dark:border-neutral-700 shadow-md overflow-hidden transition-transform duration-200',
               isSidebarOpen ? 'translate-x-0' : '-translate-x-[110%]'
             )}
             style={{ width: `${sidebarWidth}px` }}
@@ -175,7 +175,7 @@ export const Layout: React.FC<LayoutProps> = ({
         <div className="flex gap-3 sm:gap-4 items-start h-full min-w-0">
           <aside 
             ref={sidebarRef}
-            className="flex-shrink-0 h-full bg-white dark:bg-neutral-900 rounded-2xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] overflow-hidden z-20 transition-colors duration-200 relative"
+            className="flex-shrink-0 h-full bg-white dark:bg-neutral-900 rounded-2xl border border-gray-200 dark:border-neutral-700 shadow-sm overflow-hidden z-20 transition-colors duration-200 relative"
             style={{ width: `${sidebarWidth}px` }}
           >
             <Sidebar

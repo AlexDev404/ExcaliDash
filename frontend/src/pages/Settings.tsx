@@ -1,14 +1,14 @@
+import clsx from 'clsx';
+import { Archive, Check, Info, Moon, RefreshCw, Sun, Upload, Zap, ZapOff } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { Layout } from '../components/Layout';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../api';
-import type { Collection } from '../types';
-import { Upload, Moon, Sun, Info, Archive, RefreshCw, Check, Zap, ZapOff } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { importLegacyFiles } from '../utils/importUtils';
-import { useTheme } from '../context/ThemeContext';
+import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
-import clsx from 'clsx';
+import { useTheme } from '../context/ThemeContext';
+import type { Collection } from '../types';
+import { importLegacyFiles } from '../utils/importUtils';
 
 export const Settings: React.FC = () => {
     const [collections, setCollections] = useState<Collection[]>([]);
@@ -288,7 +288,7 @@ export const Settings: React.FC = () => {
             onEditCollection={handleEditCollection}
             onDeleteCollection={handleDeleteCollection}
         >
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl mb-6 lg:mb-8 text-slate-900 dark:text-white pl-1" style={{ fontFamily: 'Excalifont' }}>
+            <h1 className="text-3xl font-semibold sm:text-4xl lg:text-5xl mb-6 lg:mb-8 text-slate-900 dark:text-white pl-1">
                 Settings
             </h1>
 
@@ -299,13 +299,13 @@ export const Settings: React.FC = () => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)]">
+                <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md">
                     <div className="w-12 h-12 sm:w-16 sm:h-16 bg-indigo-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-indigo-100 dark:border-neutral-700">
                         <Archive size={32} className="text-indigo-600 dark:text-indigo-400 hidden sm:block" />
                         <Archive size={24} className="text-indigo-600 dark:text-indigo-400 sm:hidden" />
                     </div>
                     <div className="text-center">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Export Backup</h3>
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Export Backup</h3>
                         <p className="text-xs text-slate-500 dark:text-neutral-400 font-medium max-w-[200px] mx-auto">
                             Exports an `.excalidash` archive organized by collections
                         </p>
@@ -313,14 +313,14 @@ export const Settings: React.FC = () => {
                     <div className="w-full flex flex-col items-stretch gap-2 pt-2">
                         <button
                             onClick={exportBackup}
-                            className="w-full px-4 py-2 text-sm font-bold rounded-xl border-2 border-black dark:border-neutral-700 bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all"
+                            className="w-full px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
                         >
                             Export
                         </button>
                         <select
                             value={backupExportExt}
                             onChange={(e) => setBackupExportExt(e.target.value as any)}
-                            className="w-full px-3 py-2 text-sm font-bold rounded-xl border-2 border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-900 dark:text-white"
+                            className="w-full px-3 py-2 text-sm font-semibold rounded-xl border-2 border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-900 dark:text-white"
                             title="Download name"
                         >
                             <option value="excalidash">.excalidash</option>
@@ -331,7 +331,7 @@ export const Settings: React.FC = () => {
 
                 <button
                     onClick={toggleTheme}
-                    className="w-full flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group"
+                    className="w-full flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md hover:shadow-lg transition-all duration-200 group"
                 >
                     <div className="w-12 h-12 sm:w-16 sm:h-16 bg-amber-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-amber-100 dark:border-neutral-700 group-hover:border-amber-200 dark:group-hover:border-neutral-600 transition-colors">
                         {theme === 'light' ? (
@@ -346,7 +346,7 @@ export const Settings: React.FC = () => {
                         )}
                     </div>
                     <div className="text-center">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
                             {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
                         </h3>
                         <p className="text-xs text-slate-500 dark:text-neutral-400 font-medium max-w-[200px] mx-auto">
@@ -357,7 +357,7 @@ export const Settings: React.FC = () => {
 
                 <button
                     onClick={toggleImageCompression}
-                    className="w-full flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group"
+                    className="w-full flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md hover:shadow-lg transition-all duration-200 group"
                 >
                     <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-blue-100 dark:border-neutral-700 group-hover:border-blue-200 dark:group-hover:border-neutral-600 transition-colors">
                         {imageCompression ? (
@@ -372,7 +372,7 @@ export const Settings: React.FC = () => {
                         )}
                     </div>
                     <div className="text-center">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
                             {imageCompression ? 'Optimized Images' : 'Raw Images'}
                         </h3>
                         <p className="text-xs text-slate-500 dark:text-neutral-400 font-medium max-w-[200px] mx-auto">
@@ -381,7 +381,7 @@ export const Settings: React.FC = () => {
                     </div>
                 </button>
 
-                <div className="flex flex-col p-4 sm:p-6 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)]">
+                <div className="flex flex-col p-4 sm:p-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md">
                     <div className="flex items-center gap-3 sm:gap-4 mb-6">
                         <div className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl flex items-center justify-center border-2 border-emerald-100 dark:border-emerald-800/50 relative overflow-hidden group">
                             <div className="absolute inset-0 opacity-[0.2] bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] [background-size:12px_12px]"></div>
@@ -389,18 +389,18 @@ export const Settings: React.FC = () => {
                             <RefreshCw size={32} className={clsx("text-emerald-600 dark:text-emerald-400 relative z-10 hidden sm:block", updateLoading && "animate-spin")} />
                         </div>
                         <div className="min-w-0">
-                            <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate">Updates</h3>
+                            <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white truncate">Updates</h3>
                         </div>
                     </div>
 
                     <div className="space-y-4 flex-1">
                         <div className="p-3 sm:p-4 rounded-xl border-2 border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-800/30">
                             <div className="flex items-center justify-between mb-2">
-                                <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400 dark:text-neutral-500" htmlFor="settings-update-channel">
+                                <label className="text-[10px] sm:text-xsfont-semibold uppercase tracking-widest text-slate-400 dark:text-neutral-500" htmlFor="settings-update-channel">
                                     Channel
                                 </label>
                                 <span className={clsx(
-                                    "px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-tighter border",
+                                    "px-2 py-0.5 rounded-full text-[9px] sm:text-[10px]font-semibold uppercase tracking-tighter border",
                                     updateChannel === 'stable' 
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/50" 
                                         : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/50"
@@ -420,7 +420,7 @@ export const Settings: React.FC = () => {
                                     setUpdateChannel(next);
                                     void checkForUpdates(next);
                                 }}
-                                className="w-full h-10 px-2 sm:px-3 rounded-lg border-2 border-black dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]"
+                                className="w-full h-10 px-2 sm:px-3 rounded-lg border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer shadow-sm"
                             >
                                 <option value="stable">Stable</option>
                                 <option value="prerelease">Prerelease</option>
@@ -429,10 +429,10 @@ export const Settings: React.FC = () => {
 
                         <div className="flex flex-col gap-2">
                             <div className="flex items-center justify-between px-1">
-                                <span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-neutral-500 uppercase tracking-widest">Current Status</span>
+                                <span className="text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-neutral-500 uppercase tracking-widest">Current Status</span>
                             </div>
                             <div className={clsx(
-                                "px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border-2 font-bold text-xs sm:text-sm flex items-center gap-2 sm:gap-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]",
+                                "px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border-2 font-semibold text-xs sm:text-sm flex items-center gap-2 sm:gap-3 shadow-sm",
                                 updateInfo?.outboundEnabled === false ? "bg-slate-50 border-slate-200 text-slate-500 dark:bg-neutral-800 dark:border-neutral-700" :
                                 updateLoading ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-800 dark:text-indigo-300" :
                                 updateInfo?.isUpdateAvailable ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/50" :
@@ -461,7 +461,7 @@ export const Settings: React.FC = () => {
                         <button
                             onClick={() => void checkForUpdates(updateChannel)}
                             disabled={updateLoading}
-                            className="flex items-center justify-center gap-2 h-10 sm:h-11 rounded-xl border-2 border-black dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-900 dark:text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] text-[9px] sm:text-[10px] font-black uppercase tracking-wider hover:-translate-y-0.5 transition-all active:translate-y-0 active:shadow-none disabled:opacity-50"
+                            className="flex items-center justify-center gap-2 h-10 sm:h-11 rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-900 dark:text-white shadow-sm text-[9px] sm:text-[10px]font-semibold uppercase tracking-wider transition-all active:translate-y-0 disabled:opacity-50"
                             type="button"
                         >
                             Check Now
@@ -471,14 +471,14 @@ export const Settings: React.FC = () => {
                             href="https://github.com/ZimengXiong/ExcaliDash/releases"
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center justify-center gap-2 h-10 sm:h-11 rounded-xl border-2 border-black dark:border-neutral-700 bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[9px] sm:text-[10px] font-black uppercase tracking-wider hover:-translate-y-0.5 transition-all active:translate-y-0 active:shadow-none"
+                            className="flex items-center justify-center gap-2 h-10 sm:h-11 rounded-xl border border-gray-200 dark:border-neutral-700 bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[9px] sm:text-[10px]font-semibold uppercase tracking-wider transition-all"
                         >
                             Releases
                         </a>
                     </div>
 
                     {updateInfo?.error && !updateLoading && (
-                        <div className="mt-4 p-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 text-[10px] font-bold text-red-600 dark:text-red-400 italic">
+                        <div className="mt-4 p-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 text-[10px] font-semibold text-red-600 dark:text-red-400 italic">
                             Error: {updateInfo.error}
                         </div>
                     )}
@@ -486,7 +486,7 @@ export const Settings: React.FC = () => {
             </div>
 
             <details className="mt-8 bg-white/30 dark:bg-neutral-900/30 border border-slate-200/70 dark:border-neutral-800/70 rounded-2xl p-4 sm:p-6">
-                <summary className="cursor-pointer select-none font-bold text-slate-800 dark:text-neutral-200">
+                <summary className="cursor-pointer select-none font-semibold text-slate-800 dark:text-neutral-200">
                     Advanced / Legacy
                 </summary>
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -506,14 +506,14 @@ export const Settings: React.FC = () => {
                         <button
                             onClick={() => document.getElementById('settings-import-backup')?.click()}
                             disabled={backupImportLoading}
-                            className="w-full h-full flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full h-full flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md hover:shadow-lg transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-blue-100 dark:border-neutral-700">
                                 <Upload size={32} className="text-blue-600 dark:text-blue-400 hidden sm:block" />
                                 <Upload size={24} className="text-blue-600 dark:text-blue-400 sm:hidden" />
                             </div>
                             <div className="text-center">
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
                                     {backupImportLoading ? 'Verifying…' : 'Import Backup'}
                                 </h3>
                                 <p className="text-xs text-slate-500 dark:text-neutral-400 font-medium max-w-[200px] mx-auto">
@@ -531,14 +531,14 @@ export const Settings: React.FC = () => {
                             authToggleLoading ||
                             (authEnabled === true && user?.role !== 'ADMIN')
                         }
-                        className="w-full flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] disabled:hover:translate-y-0"
+                        className="w-full flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md hover:shadow-lg transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-md disabled:hover:translate-y-0"
                     >
                         <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-slate-200 dark:border-neutral-700 group-hover:border-slate-300 dark:group-hover:border-neutral-600 transition-colors">
                             <Info size={32} className="text-slate-700 dark:text-neutral-300 hidden sm:block" />
                             <Info size={24} className="text-slate-700 dark:text-neutral-300 sm:hidden" />
                         </div>
                         <div className="text-center">
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
                                 {authEnabled ? 'Authentication: On' : 'Authentication: Off'}
                             </h3>
                             <p className="text-xs text-slate-500 dark:text-neutral-400 font-medium max-w-[200px] mx-auto">
@@ -596,27 +596,27 @@ export const Settings: React.FC = () => {
                         <button
                             onClick={() => document.getElementById('settings-import-legacy')?.click()}
                             disabled={legacyDbImportLoading}
-                            className="w-full h-full flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-200 group"
+                            className="w-full h-full flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md hover:shadow-lg transition-all duration-200 group"
                         >
                             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-amber-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-amber-100 dark:border-neutral-700">
                                 <Upload size={32} className="text-amber-600 dark:text-amber-400 hidden sm:block" />
                                 <Upload size={24} className="text-amber-600 dark:text-amber-400 sm:hidden" />
                             </div>
                             <div className="text-center">
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Legacy Import</h3>
+                                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Legacy Import</h3>
                                 <p className="text-xs text-slate-500 dark:text-neutral-400 font-medium max-w-[200px] mx-auto">Import `.excalidraw`, legacy JSON, or merge a legacy `.db`</p>
                             </div>
                         </button>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)]">
+                    <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md">
                         <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-50 dark:bg-neutral-800 rounded-2xl flex items-center justify-center border-2 border-gray-100 dark:border-neutral-700">
                             <Info size={32} className="text-gray-600 dark:text-gray-400 hidden sm:block" />
                             <Info size={24} className="text-gray-600 dark:text-gray-400 sm:hidden" />
                         </div>
                         <div className="text-center">
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Version Info</h3>
-                            <div className="text-[10px] sm:text-xs text-slate-500 dark:text-neutral-400 font-bold flex flex-col items-center gap-1">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Version Info</h3>
+                            <div className="text-[10px] sm:text-xs text-slate-500 dark:text-neutral-400 font-semibold flex flex-col items-center gap-1">
                                 <span className="text-sm sm:text-base text-slate-900 dark:text-white">
                                     {appVersion}
                                 </span>

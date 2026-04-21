@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { getOrCreateBrowserFingerprint, getFingerprintInitials } from '../utils/identity';
+import { getFingerprintInitials, getOrCreateBrowserFingerprint } from '../utils/identity';
 
 const fnv1a = (input: string): number => {
   let hash = 0x811c9dc5;
@@ -41,7 +41,7 @@ export const FingerprintAvatar: React.FC<{
         background,
       }}
     >
-      <div className="w-full h-full flex items-center justify-center font-bold text-white text-xs select-none">
+      <div className="w-full h-full flex items-center justify-center font-semibold text-white text-xs select-none">
         {initials}
       </div>
     </div>

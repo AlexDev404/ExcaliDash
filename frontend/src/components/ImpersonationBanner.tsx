@@ -1,13 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
 import { LogIn, RefreshCw, XCircle } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api, isAxiosError } from '../api';
 import { useAuth } from '../context/AuthContext';
 import {
-  IMPERSONATION_KEY,
-  USER_KEY,
-  readImpersonationState,
-  stopImpersonation as restoreImpersonation,
-  type ImpersonationState,
+    IMPERSONATION_KEY,
+    USER_KEY,
+    readImpersonationState,
+    stopImpersonation as restoreImpersonation,
+    type ImpersonationState,
 } from '../utils/impersonation';
 
 type ImpersonationTarget = {
@@ -197,10 +197,10 @@ export const ImpersonationBanner: React.FC = () => {
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-red-700 dark:text-red-400 flex-shrink-0">
             <LogIn size={14} strokeWidth={2.5} />
-            <span className="text-[10px] font-black uppercase tracking-wider">Impersonating</span>
+            <span className="text-[10px]font-semibold uppercase tracking-wider">Impersonating</span>
           </div>
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-sm font-bold text-red-900 dark:text-red-100 truncate">
+            <span className="text-sm font-semibold text-red-900 dark:text-red-100 truncate">
               {impersonation.target.name}
             </span>
             <span className="hidden sm:inline text-xs font-medium text-red-800/60 dark:text-red-200/40 truncate">
@@ -210,7 +210,7 @@ export const ImpersonationBanner: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
-          <div className="hidden lg:flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-red-700/60 dark:text-red-400/40">
+          <div className="hidden lg:flex items-center gap-1.5 text-[10px]font-semibold uppercase tracking-wider text-red-700/60 dark:text-red-400/40">
             Switch:
           </div>
           <select
@@ -219,7 +219,7 @@ export const ImpersonationBanner: React.FC = () => {
               void switchTarget(e.target.value);
             }}
             disabled={busy || loadingTargets || options.length === 0}
-            className="h-8 min-w-[140px] max-w-[200px] px-2 rounded-lg border border-red-200 dark:border-red-800/50 bg-white/50 dark:bg-neutral-900/50 text-xs font-bold text-red-900 dark:text-red-100 outline-none hover:border-red-300 dark:hover:border-red-700 transition-colors disabled:opacity-50"
+            className="h-8 min-w-[140px] max-w-[200px] px-2 rounded-lg border border-red-200 dark:border-red-800/50 bg-white/50 dark:bg-neutral-900/50 text-xs font-semibold text-red-900 dark:text-red-100 outline-none hover:border-red-300 dark:hover:border-red-700 transition-colors disabled:opacity-50"
           >
             {options.map((target) => (
               <option key={target.id} value={target.id}>
@@ -231,7 +231,7 @@ export const ImpersonationBanner: React.FC = () => {
             type="button"
             onClick={stop}
             disabled={busy}
-            className="h-8 flex items-center justify-center gap-1.5 px-3 rounded-lg bg-red-600 dark:bg-red-600/80 text-[11px] font-black uppercase tracking-wider text-white hover:bg-red-700 dark:hover:bg-red-500 transition-all disabled:opacity-50 shadow-sm shadow-red-900/10"
+            className="h-8 flex items-center justify-center gap-1.5 px-3 rounded-lg bg-red-600 dark:bg-red-600/80 text-[11px]font-semibold uppercase tracking-wider text-white hover:bg-red-700 dark:hover:bg-red-500 transition-all disabled:opacity-50 shadow-sm shadow-red-900/10"
           >
             <XCircle size={14} strokeWidth={2.5} />
             <span className="hidden sm:inline">Stop</span>
@@ -240,7 +240,7 @@ export const ImpersonationBanner: React.FC = () => {
       </div>
 
       {(loadingTargets || error) && (
-        <div className="mt-1.5 pt-1.5 border-t border-red-200/50 dark:border-red-800/20 flex items-center gap-3 text-[10px] font-bold text-red-800 dark:text-red-300">
+        <div className="mt-1.5 pt-1.5 border-t border-red-200/50 dark:border-red-800/20 flex items-center gap-3 text-[10px] font-semibold text-red-800 dark:text-red-300">
           {loadingTargets ? (
             <span className="inline-flex items-center gap-1.5">
               <RefreshCw size={10} className="animate-spin" />

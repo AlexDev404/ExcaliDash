@@ -1,5 +1,5 @@
-import React from 'react';
 import { Settings as SettingsIcon } from 'lucide-react';
+import React from 'react';
 
 type LoginRateLimitCardProps = {
   loading: boolean;
@@ -41,13 +41,13 @@ export const LoginRateLimitCard: React.FC<LoginRateLimitCardProps> = ({
   onResetIdentifierChange,
   onReset,
 }) => (
-  <div className="mb-6 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] p-4 sm:p-6">
+  <div className="mb-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md p-4 sm:p-6">
     <div className="flex items-center gap-3 mb-4">
       <div className="w-12 h-12 bg-slate-50 dark:bg-neutral-800 rounded-xl flex items-center justify-center border-2 border-slate-200 dark:border-neutral-700">
         <SettingsIcon size={24} className="text-slate-700 dark:text-neutral-200" />
       </div>
       <div className="min-w-0">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Login Rate Limiting</h2>
+        <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Login Rate Limiting</h2>
         <p className="text-sm text-slate-600 dark:text-neutral-400 font-medium">
           Reduce brute-force attacks; disable only for trusted environments. Changes are saved
           automatically.
@@ -62,13 +62,13 @@ export const LoginRateLimitCard: React.FC<LoginRateLimitCardProps> = ({
 
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div>
-        <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">
+        <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
           Rate Limiting
         </label>
         <button
           type="button"
           onClick={onToggleEnabled}
-          className={`w-full px-4 py-3 rounded-xl border-2 font-bold transition-all text-sm ${
+          className={`w-full px-4 py-3 rounded-xl border-2 font-semibold transition-all text-sm ${
             enabled
               ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
               : 'border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-600 dark:text-neutral-300'
@@ -78,7 +78,7 @@ export const LoginRateLimitCard: React.FC<LoginRateLimitCardProps> = ({
         </button>
       </div>
       <div>
-        <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">
+        <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
           Window (minutes)
         </label>
         <input
@@ -90,7 +90,7 @@ export const LoginRateLimitCard: React.FC<LoginRateLimitCardProps> = ({
         />
       </div>
       <div>
-        <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">
+        <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
           Max attempts
         </label>
         <input
@@ -105,7 +105,7 @@ export const LoginRateLimitCard: React.FC<LoginRateLimitCardProps> = ({
 
     <div className="mt-4 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
       <div className="min-w-0 flex-1">
-        <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">
+        <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
           Reset lockout (email/username)
         </label>
         <input
@@ -128,7 +128,7 @@ export const LoginRateLimitCard: React.FC<LoginRateLimitCardProps> = ({
         <button
           onClick={() => void onReset()}
           disabled={resetLoading}
-          className="px-4 py-2 text-sm font-bold rounded-xl border-2 border-black dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-neutral-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 transition-all disabled:opacity-60"
+          className="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-neutral-200 shadow-sm transition-all disabled:opacity-60"
         >
           {resetLoading ? 'Resetting…' : 'Reset'}
         </button>

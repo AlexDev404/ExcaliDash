@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Layout } from '../components/Layout';
+import { Lock, Save, User, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import * as api from '../api';
+import { Layout } from '../components/Layout';
+import { PasswordRequirements } from '../components/PasswordRequirements';
+import { useAuth } from '../context/AuthContext';
 import type { Collection } from '../types';
-import { User, Lock, Save, X } from 'lucide-react';
 import { USER_KEY } from '../utils/impersonation';
 import { getPasswordPolicy, validatePassword } from '../utils/passwordPolicy';
-import { PasswordRequirements } from '../components/PasswordRequirements';
 
 export const Profile: React.FC = () => {
     const { user: authUser, logout, authEnabled } = useAuth();
@@ -222,7 +222,7 @@ export const Profile: React.FC = () => {
             onEditCollection={handleEditCollection}
             onDeleteCollection={handleDeleteCollection}
         >
-            <h1 className="text-3xl sm:text-5xl mb-6 sm:mb-8 text-slate-900 dark:text-white pl-1" style={{ fontFamily: 'Excalifont' }}>
+            <h1 className="text-3xl font-semibold sm:text-5xl mb-6 sm:mb-8 text-slate-900 dark:text-white pl-1">
                 Profile
             </h1>
 
@@ -238,17 +238,17 @@ export const Profile: React.FC = () => {
             )}
 
             <div className="space-y-6">
-                <div className="bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] p-6">
+                <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md p-6">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="w-12 h-12 bg-indigo-50 dark:bg-neutral-800 rounded-xl flex items-center justify-center border-2 border-indigo-100 dark:border-neutral-700">
                             <User size={24} className="text-indigo-600 dark:text-indigo-400" />
                         </div>
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Personal Information</h2>
+                        <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Personal Information</h2>
                     </div>
 
                             {mustResetPassword && (
                                 <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-800 rounded-xl">
-                                    <p className="text-amber-900 dark:text-amber-200 font-bold">
+                                    <p className="text-amber-900 dark:text-amber-200 font-semibold">
                                         Password reset required
                                     </p>
                                     <p className="text-sm text-amber-800 dark:text-amber-200/80 font-medium mt-1">
@@ -258,7 +258,7 @@ export const Profile: React.FC = () => {
                             )}
 		                    <div className="space-y-4">
 	                        <div>
-	                            <label htmlFor="email" className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">
+	                            <label htmlFor="email" className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
 	                                Email Address
 	                            </label>
 	                            <div className="flex gap-3">
@@ -270,7 +270,7 @@ export const Profile: React.FC = () => {
 	                                    disabled={!showEmailForm}
 	                                    className={
 	                                        showEmailForm
-	                                            ? "flex-1 px-4 py-3 bg-white dark:bg-neutral-800 border-2 border-black dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 font-medium"
+	                                            ? "flex-1 px-4 py-3 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 font-medium"
 	                                            : "flex-1 px-4 py-3 bg-slate-50 dark:bg-neutral-800 border-2 border-slate-200 dark:border-neutral-700 rounded-xl text-slate-600 dark:text-neutral-400 cursor-not-allowed"
 	                                    }
 	                                />
@@ -283,7 +283,7 @@ export const Profile: React.FC = () => {
 		                                            setSuccess('');
 		                                        }}
                                                 disabled={mustResetPassword}
-		                                        className="px-6 py-3 bg-white dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 font-bold rounded-xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 transition-all duration-200"
+		                                        className="px-6 py-3 bg-white dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md dark:hover:shadow-md transition-all duration-200"
 		                                    >
 		                                        Change
 		                                    </button>
@@ -293,7 +293,7 @@ export const Profile: React.FC = () => {
 	                            {showEmailForm && (
 	                                <div className="mt-4 space-y-3">
 	                                    <div>
-	                                        <label htmlFor="emailCurrentPassword" className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">
+	                                        <label htmlFor="emailCurrentPassword" className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
 	                                            Current Password
 	                                        </label>
 	                                        <input
@@ -301,7 +301,7 @@ export const Profile: React.FC = () => {
 	                                            type="password"
 	                                            value={emailCurrentPassword}
 	                                            onChange={(e) => setEmailCurrentPassword(e.target.value)}
-	                                            className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border-2 border-black dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 font-medium"
+	                                            className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 font-medium"
 	                                            placeholder="Enter current password"
 	                                        />
 	                                    </div>
@@ -314,7 +314,7 @@ export const Profile: React.FC = () => {
 	                                                !emailCurrentPassword ||
 	                                                email.trim() === authUser?.email
 	                                            }
-	                                            className="flex-1 px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white font-bold rounded-xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+	                                            className="flex-1 px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md dark:hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
 	                                        >
 	                                            {emailLoading ? 'Saving...' : 'Save Email'}
 	                                        </button>
@@ -326,7 +326,7 @@ export const Profile: React.FC = () => {
 	                                                setError('');
 	                                            }}
 	                                            disabled={emailLoading}
-	                                            className="px-6 py-3 bg-white dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 font-bold rounded-xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+	                                            className="px-6 py-3 bg-white dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md dark:hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
 	                                        >
 	                                            <X size={18} />
 	                                            Cancel
@@ -337,7 +337,7 @@ export const Profile: React.FC = () => {
 	                        </div>
 
                         <div>
-                            <label htmlFor="name" className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">
+                            <label htmlFor="name" className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
                                 Display Name
                             </label>
                             <div className="flex gap-3">
@@ -346,13 +346,13 @@ export const Profile: React.FC = () => {
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="flex-1 px-4 py-3 bg-white dark:bg-neutral-800 border-2 border-black dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 font-medium"
+                                    className="flex-1 px-4 py-3 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 font-medium"
                                     placeholder="Your name"
                                 />
 	                                <button
 	                                    onClick={handleUpdateName}
-	                                    disabled={mustResetPassword || loading || !name.trim() || name === authUser?.name}
-	                                    className="px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white font-bold rounded-xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:disabled:hover:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] flex items-center gap-2"
+                                            disabled={mustResetPassword || loading || !name.trim() || name === authUser?.name}
+                                            className="px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md dark:hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
 	                                >
 	                                    <Save size={18} />
 	                                    Save
@@ -362,18 +362,18 @@ export const Profile: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] p-6">
+                <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md p-6">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-rose-50 dark:bg-neutral-800 rounded-xl flex items-center justify-center border-2 border-rose-100 dark:border-neutral-700">
                                 <Lock size={24} className="text-rose-600 dark:text-rose-400" />
                             </div>
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Change Password</h2>
+                            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Change Password</h2>
                         </div>
                         {!showPasswordForm && !mustResetPassword && (
                             <button
                                 onClick={() => setShowPasswordForm(true)}
-                                className="px-4 py-2 bg-rose-600 dark:bg-rose-500 text-white font-bold rounded-xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 transition-all duration-200"
+                                className="px-4 py-2 bg-rose-600 dark:bg-rose-500 text-white font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md dark:hover:shadow-md transition-all duration-200"
                             >
                                 Change Password
                             </button>
@@ -383,7 +383,7 @@ export const Profile: React.FC = () => {
                     {showPasswordForm && (
                         <div className="space-y-4">
                             <div>
-                                <label htmlFor="currentPassword" className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">
+                                <label htmlFor="currentPassword" className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
                                     Current Password
                                 </label>
                                 <input
@@ -391,13 +391,13 @@ export const Profile: React.FC = () => {
                                     type="password"
                                     value={currentPassword}
                                     onChange={(e) => setCurrentPassword(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border-2 border-black dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 dark:focus:ring-rose-400 font-medium"
+                                    className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 dark:focus:ring-rose-400 font-medium"
                                     placeholder="Enter current password"
                                 />
                             </div>
 
                             <div>
-                                <label htmlFor="newPassword" className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">
+                                <label htmlFor="newPassword" className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
                                     New Password
                                 </label>
                                 <input
@@ -408,7 +408,7 @@ export const Profile: React.FC = () => {
                                     minLength={passwordPolicy.minLength}
                                     maxLength={passwordPolicy.maxLength}
                                     pattern={passwordPolicy.patternHtml}
-                                    className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border-2 border-black dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 dark:focus:ring-rose-400 font-medium"
+                                    className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 dark:focus:ring-rose-400 font-medium"
                                     placeholder="Enter new password"
                                 />
                                 <PasswordRequirements
@@ -419,7 +419,7 @@ export const Profile: React.FC = () => {
                             </div>
 
                             <div>
-                                <label htmlFor="confirmPassword" className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">
+                                <label htmlFor="confirmPassword" className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
                                     Confirm New Password
                                 </label>
                                 <input
@@ -429,7 +429,7 @@ export const Profile: React.FC = () => {
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     minLength={passwordPolicy.minLength}
                                     maxLength={passwordPolicy.maxLength}
-                                    className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border-2 border-black dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 dark:focus:ring-rose-400 font-medium"
+                                    className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 dark:focus:ring-rose-400 font-medium"
                                     placeholder="Confirm new password"
                                 />
                             </div>
@@ -438,7 +438,7 @@ export const Profile: React.FC = () => {
                                 <button
                                     onClick={handleChangePassword}
                                     disabled={loading || !currentPassword || !newPassword || !confirmPassword}
-                                    className="flex-1 px-6 py-3 bg-rose-600 dark:bg-rose-500 text-white font-bold rounded-xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:disabled:hover:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]"
+                                    className="flex-1 px-6 py-3 bg-rose-600 dark:bg-rose-500 text-white font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md dark:hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {loading ? 'Changing...' : 'Change Password'}
                                 </button>
@@ -452,7 +452,7 @@ export const Profile: React.FC = () => {
 	                                            setError('');
 	                                        }}
 	                                        disabled={loading}
-	                                        className="px-6 py-3 bg-white dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 font-bold rounded-xl border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+	                                        className="px-6 py-3 bg-white dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md dark:hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
 	                                    >
 	                                        <X size={18} />
 	                                        Cancel

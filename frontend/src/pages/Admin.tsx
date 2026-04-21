@@ -1,24 +1,24 @@
+import { RefreshCw, UserCog, UserPlus } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useBeforeUnload, useNavigate } from 'react-router-dom';
-import { Layout } from '../components/Layout';
-import { useAuth } from '../context/AuthContext';
+import { toast, Toaster } from 'sonner';
 import * as api from '../api';
-import type { Collection } from '../types';
-import { UserPlus, RefreshCw, UserCog } from 'lucide-react';
-import { Toaster, toast } from 'sonner';
-import { getPasswordPolicy, validatePassword } from '../utils/passwordPolicy';
+import { Layout } from '../components/Layout';
 import { PasswordRequirements } from '../components/PasswordRequirements';
-import { AccessControlCard } from './admin/AccessControlCard';
-import { LoginRateLimitCard } from './admin/LoginRateLimitCard';
-import { UserActionModals } from './admin/UserActionModals';
-import { UsersTable } from './admin/UsersTable';
-import type { AdminUser } from './admin/types';
+import { useAuth } from '../context/AuthContext';
+import type { Collection } from '../types';
 import {
   IMPERSONATION_KEY,
   type ImpersonationState,
   readImpersonationState,
   USER_KEY,
 } from '../utils/impersonation';
+import { getPasswordPolicy, validatePassword } from '../utils/passwordPolicy';
+import { AccessControlCard } from './admin/AccessControlCard';
+import { LoginRateLimitCard } from './admin/LoginRateLimitCard';
+import { UserActionModals } from './admin/UserActionModals';
+import { UsersTable } from './admin/UsersTable';
+import type { AdminUser } from './admin/types';
 
 type LoginRateLimitFormState = {
   enabled: boolean;
@@ -532,7 +532,7 @@ export const Admin: React.FC = () => {
     >
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 sm:mb-8 min-w-0">
         <div className="min-w-0">
-          <h1 className="text-3xl sm:text-5xl text-slate-900 dark:text-white pl-1" style={{ fontFamily: 'Excalifont' }}>
+          <h1 className="text-3xl sm:text-5xl text-slate-900 dark:text-white pl-1 font-semibold">
             Admin
           </h1>
           <p className="mt-2 text-sm text-slate-600 dark:text-neutral-400 font-medium">
@@ -544,14 +544,14 @@ export const Admin: React.FC = () => {
           <button
             onClick={() => loadUsers()}
             disabled={loadingUsers}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl border-2 border-black dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-neutral-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5 transition-all disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-neutral-200 shadow-sm transition-all disabled:opacity-60"
           >
             <RefreshCw size={16} />
             Refresh
           </button>
           <button
             onClick={() => setCreateOpen(v => !v)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl border-2 border-black dark:border-neutral-700 bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
             <UserPlus size={16} />
             New User
@@ -571,17 +571,17 @@ export const Admin: React.FC = () => {
       )}
 
       {createOpen && (
-        <div className="mb-6 bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] p-4 sm:p-6">
+        <div className="mb-6 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 bg-indigo-50 dark:bg-neutral-800 rounded-xl flex items-center justify-center border-2 border-indigo-100 dark:border-neutral-700">
               <UserCog size={24} className="text-indigo-600 dark:text-indigo-400" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Create User</h2>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Create User</h2>
           </div>
 
           <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">Email</label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">Email</label>
               <input
                 type="email"
                 value={createEmail}
@@ -592,7 +592,7 @@ export const Admin: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">Name</label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">Name</label>
               <input
                 type="text"
                 value={createName}
@@ -603,7 +603,7 @@ export const Admin: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">Username (optional)</label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">Username (optional)</label>
               <input
                 type="text"
                 value={createUsername}
@@ -613,7 +613,7 @@ export const Admin: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">Account Type</label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">Account Type</label>
               <button
                 type="button"
                 onClick={() => {
@@ -622,7 +622,7 @@ export const Admin: React.FC = () => {
                   if (next) setCreateMustReset(false);
                 }}
                 disabled={!oidcEnabled}
-                className={`w-full px-4 py-3 rounded-xl border-2 font-bold transition-all text-sm ${
+                className={`w-full px-4 py-3 rounded-xl border-2 font-semibold transition-all text-sm ${
                   createOidcOnly
                     ? 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200'
                     : 'border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-600 dark:text-neutral-300'
@@ -639,7 +639,7 @@ export const Admin: React.FC = () => {
 
             {!createOidcOnly && (
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">Temporary Password</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">Temporary Password</label>
                 <input
                   type="password"
                   value={createPassword}
@@ -659,7 +659,7 @@ export const Admin: React.FC = () => {
             )}
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">Role</label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">Role</label>
               <select
                 value={createRole}
                 onChange={e => setCreateRole(e.target.value as 'ADMIN' | 'USER')}
@@ -672,12 +672,12 @@ export const Admin: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
               <div className="flex-1 w-full">
-                <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">Password Reset</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">Password Reset</label>
                 <button
                   type="button"
                   onClick={() => !createOidcOnly && setCreateMustReset(!createMustReset)}
                   disabled={createOidcOnly}
-                  className={`w-full px-4 py-3 rounded-xl border-2 font-bold transition-all text-sm ${
+                  className={`w-full px-4 py-3 rounded-xl border-2 font-semibold transition-all text-sm ${
                     createMustReset
                       ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200'
                       : 'border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-600 dark:text-neutral-300'
@@ -687,11 +687,11 @@ export const Admin: React.FC = () => {
                 </button>
               </div>
               <div className="flex-1 w-full">
-                <label className="block text-sm font-bold text-slate-700 dark:text-neutral-300 mb-2">Account Status</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">Account Status</label>
                 <button
                   type="button"
                   onClick={() => setCreateActive(!createActive)}
-                  className={`w-full px-4 py-3 rounded-xl border-2 font-bold transition-all text-sm ${
+                  className={`w-full px-4 py-3 rounded-xl border-2 font-semibold transition-all text-sm ${
                     createActive
                       ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
                       : 'border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-600 dark:text-neutral-300'
@@ -706,13 +706,13 @@ export const Admin: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCreateOpen(false)}
-                className="px-4 py-2 text-sm font-bold rounded-xl border-2 border-black dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-neutral-200"
+                className="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-neutral-200"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-sm font-bold rounded-xl border-2 border-black dark:border-neutral-700 bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all"
+                className="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
               >
                 Create
               </button>

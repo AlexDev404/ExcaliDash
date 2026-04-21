@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
 import { BellOff, ExternalLink, RefreshCw, XCircle } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import * as api from "../api";
 
 const CHANNEL_KEY = "excalidash-update-channel";
@@ -144,10 +144,10 @@ export const UpdateBanner: React.FC = () => {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 flex-shrink-0">
-            <span className="text-[10px] font-black uppercase tracking-wider">Update available</span>
+            <span className="text-[10px]font-semibold uppercase tracking-wider">Update available</span>
           </div>
           <div className="min-w-0 flex items-center gap-2">
-            <span className="text-sm font-bold text-emerald-950 dark:text-emerald-50 truncate">
+            <span className="text-sm font-semibold text-emerald-950 dark:text-emerald-50 truncate">
               v{info?.latestVersion}
             </span>
             <span className="hidden sm:inline text-xs font-medium text-emerald-900/60 dark:text-emerald-200/40">
@@ -164,7 +164,7 @@ export const UpdateBanner: React.FC = () => {
               writeChannel(next);
               setChannel(next);
             }}
-            className="h-8 px-2 rounded-lg border border-emerald-200 dark:border-emerald-800/50 bg-white/50 dark:bg-neutral-900/50 text-xs font-bold text-emerald-950 dark:text-emerald-50 outline-none hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
+            className="h-8 px-2 rounded-lg border border-emerald-200 dark:border-emerald-800/50 bg-white/50 dark:bg-neutral-900/50 text-xs font-semibold text-emerald-950 dark:text-emerald-50 outline-none hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
             title="Update channel"
             aria-label="Update channel"
           >
@@ -177,7 +177,7 @@ export const UpdateBanner: React.FC = () => {
               href={info.latestUrl}
               target="_blank"
               rel="noreferrer"
-              className="h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg bg-emerald-600 dark:bg-emerald-600/80 text-[11px] font-black uppercase tracking-wider text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 transition-all shadow-sm shadow-emerald-900/10"
+              className="h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg bg-emerald-600 dark:bg-emerald-600/80 text-[11px]font-semibold uppercase tracking-wider text-white hover:bg-emerald-700 dark:hover:bg-emerald-500 transition-all shadow-sm shadow-emerald-900/10"
             >
               <ExternalLink size={14} strokeWidth={2.5} />
               <span className="hidden sm:inline">Release</span>
@@ -192,7 +192,7 @@ export const UpdateBanner: React.FC = () => {
               safeSetSessionItem(closedVersionStorageKey(channel), latest);
               setClosedVersion(latest);
             }}
-            className="h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg bg-white/70 dark:bg-neutral-900/60 border border-emerald-200 dark:border-emerald-800/50 text-[11px] font-black uppercase tracking-wider text-emerald-900 dark:text-emerald-100 hover:bg-white dark:hover:bg-neutral-900 transition-colors"
+            className="h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg bg-white/70 dark:bg-neutral-900/60 border border-emerald-200 dark:border-emerald-800/50 text-[11px]font-semibold uppercase tracking-wider text-emerald-900 dark:text-emerald-100 hover:bg-white dark:hover:bg-neutral-900 transition-colors"
             title="Close (will reappear later)"
           >
             <XCircle size={14} strokeWidth={2.5} />
@@ -207,7 +207,7 @@ export const UpdateBanner: React.FC = () => {
               safeSetItem(DISMISSED_VERSION_KEY, latest);
               setIgnoredVersion(latest);
             }}
-            className="h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg bg-emerald-100/70 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 text-[11px] font-black uppercase tracking-wider text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+            className="h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg bg-emerald-100/70 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 text-[11px]font-semibold uppercase tracking-wider text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
             title="Ignore this version"
           >
             <BellOff size={14} strokeWidth={2.5} />
