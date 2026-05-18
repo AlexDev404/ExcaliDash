@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import type { ChatAttachment, ChatMessage } from './ChatTypes';
+import type { ChatAttachment, ChatMessage, ChatThread } from './ChatTypes';
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -19,8 +19,10 @@ interface ChatThreadViewProps {
   threadId: string;
   messages: ChatMessage[];
   peers: Peer[];
+  threads: ChatThread[];
   myId: string;
   onSend: (body: string, attachments: ChatAttachment[], mentionedUserIds: string[]) => void;
+  onSwitchThread: (threadId: string) => void;
 }
 
 // ─── Lightbox ─────────────────────────────────────────────────────────────────
@@ -61,21 +63,54 @@ const Lightbox: React.FC<{ src: string; name: string; onClose: () => void }> = (
 );
 
 // ─── Mention parsing ──────────────────────────────────────────────────────────
-const renderBody = (body: string, isMine: boolean): React.ReactNode[] => {
-  const parts = body.split(/(@\S+)/g);
-  return parts.map((part, i) =>
-    part.startsWith('@') ? (
-      <span key={i} className={`font-semibold ${isMine ? 'text-white underline decoration-white/60' : 'text-indigo-600 dark:text-indigo-400'}`}>
-        {part}
-      </span>
-    ) : (
-      <React.Fragment key={i}>{part}</React.Fragment>
-    )
-  );
+const renderBody = (
+  body: string,
+  isMine: boolean,
+  threads: ChatThread[],
+  onSwitchThread: (threadId: string) => void,
+): React.ReactNode[] => {
+  const parts = body.split(/([@#]\S+)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('@')) {
+      return (
+        <span key={i} className={`font-semibold ${isMine ? 'text-white underline decoration-white/60' : 'text-indigo-600 dark:text-indigo-400'}`}>
+          {part}
+        </span>
+      );
+    }
+    if (part.startsWith('#')) {
+      const name = part.slice(1).toLowerCase();
+      const thread = threads.find(t => t.name.toLowerCase() === name);
+      if (thread) {
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onSwitchThread(thread.id)}
+            className={`font-semibold underline cursor-pointer ${isMine ? 'text-white decoration-white/60 hover:decoration-white' : 'text-indigo-600 dark:text-indigo-400 decoration-indigo-400/60 hover:decoration-indigo-600'}`}
+          >
+            {part}
+          </button>
+        );
+      }
+      // Thread doesn't exist locally — render as bold text only
+      return (
+        <span key={i} className={`font-semibold ${isMine ? 'text-white/80' : 'text-slate-600 dark:text-neutral-400'}`}>
+          {part}
+        </span>
+      );
+    }
+    return <React.Fragment key={i}>{part}</React.Fragment>;
+  });
 };
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
-const MessageBubble: React.FC<{ message: ChatMessage; isMine: boolean }> = ({ message, isMine }) => {
+const MessageBubble: React.FC<{
+  message: ChatMessage;
+  isMine: boolean;
+  threads: ChatThread[];
+  onSwitchThread: (threadId: string) => void;
+}> = ({ message, isMine, threads, onSwitchThread }) => {
   const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
 
   const time = new Date(message.timestamp).toLocaleTimeString([], {
@@ -100,7 +135,7 @@ const MessageBubble: React.FC<{ message: ChatMessage; isMine: boolean }> = ({ me
             : 'bg-slate-100 dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 rounded-bl-sm'
         }`}
       >
-        {message.body && <p className="whitespace-pre-wrap leading-relaxed">{renderBody(message.body, isMine)}</p>}
+        {message.body && <p className="whitespace-pre-wrap leading-relaxed">{renderBody(message.body, isMine, threads, onSwitchThread)}</p>}
         {message.attachments.map((att, idx) =>
           att.mimeType.startsWith('image/') ? (
             <button
@@ -138,8 +173,10 @@ const MessageBubble: React.FC<{ message: ChatMessage; isMine: boolean }> = ({ me
 export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
   messages,
   peers,
+  threads,
   myId,
   onSend,
+  onSwitchThread,
 }) => {
   const [body, setBody] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
@@ -246,7 +283,13 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
           </p>
         )}
         {messages.map(msg => (
-          <MessageBubble key={msg.id} message={msg} isMine={msg.authorId === myId} />
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            isMine={msg.authorId === myId}
+            threads={threads}
+            onSwitchThread={onSwitchThread}
+          />
         ))}
         <div ref={bottomRef} />
       </div>

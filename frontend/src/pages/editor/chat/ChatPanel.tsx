@@ -351,8 +351,10 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(({
           threadId={activeThreadId}
           messages={messages}
           peers={peers}
+          threads={threads}
           myId={myId}
           onSend={handleSend}
+          onSwitchThread={setActiveThreadId}
         />
       </div>
     </div>
