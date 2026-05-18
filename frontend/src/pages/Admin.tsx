@@ -16,6 +16,7 @@ import {
 } from '../utils/impersonation';
 import { getPasswordPolicy, validatePassword } from '../utils/passwordPolicy';
 import { AccessControlCard } from './admin/AccessControlCard';
+import { AdminCollectionsPanel } from './admin/AdminCollectionsPanel';
 import { EditUserModal } from './admin/EditUserModal';
 import { LoginRateLimitCard } from './admin/LoginRateLimitCard';
 import { UserActionModals } from './admin/UserActionModals';
@@ -790,8 +791,10 @@ export const Admin: React.FC = () => {
         onDelete={setDeleteTarget}
       />
 
+      <AdminCollectionsPanel />
+
       <ConfirmModal
-        isOpen={Boolean(deleteTarget)}
+        isOpen={!!deleteTarget}
         title="Delete user?"
         message={
           deleteTarget

@@ -886,4 +886,107 @@ export const registerAdminRoutes = (deps: RegisterAdminRoutesDeps) => {
       });
     }
   });
+
+  // ── Admin: Collection permission management ─────────────────────────────────
+
+  // GET /auth/collections — all collections (with owner info)
+  router.get("/collections", requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!(await ensureAuthEnabled(res))) return;
+      if (!requireAdmin(req, res)) return;
+
+      const collections = await prisma.collection.findMany({
+        orderBy: [{ userId: "asc" }, { createdAt: "desc" }],
+        select: {
+          id: true,
+          name: true,
+          userId: true,
+          createdAt: true,
+          updatedAt: true,
+          user: { select: { id: true, name: true, email: true } },
+          permissions: {
+            include: {
+              granteeUser: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+      });
+
+      // Exclude internal trash collections from the admin view
+      const filtered = collections.filter((c) => !c.name.startsWith("__trash__") && c.name !== "Trash" || !c.id.startsWith("trash:"));
+
+      res.json({ collections: filtered });
+    } catch (error) {
+      console.error("Admin list collections error:", error);
+      res.status(500).json({ error: "Internal server error", message: "Failed to list collections" });
+    }
+  });
+
+  // POST /auth/collections/:id/permissions — admin grant/update
+  router.post("/collections/:id/permissions", requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!(await ensureAuthEnabled(res))) return;
+      if (!requireCsrf(req, res)) return;
+      if (!requireAdmin(req, res)) return;
+
+      const collectionId = String(req.params.id || "").trim();
+      const { granteeUserId, permission } = req.body;
+
+      const validPerm = permission === "view" || permission === "edit" ? permission : null;
+      if (!validPerm) {
+        return res.status(400).json({ error: "Invalid permission value (use view or edit)" });
+      }
+
+      const collection = await prisma.collection.findUnique({ where: { id: collectionId } });
+      if (!collection) return res.status(404).json({ error: "Collection not found" });
+
+      const grantee = await prisma.user.findUnique({
+        where: { id: granteeUserId },
+        select: { id: true, name: true, email: true },
+      });
+      if (!grantee) return res.status(404).json({ error: "User not found" });
+
+      if (granteeUserId === collection.userId) {
+        return res.status(400).json({ error: "Cannot grant permission to the collection owner" });
+      }
+
+      const perm = await (prisma as any).collectionPermission.upsert({
+        where: { collectionId_granteeUserId: { collectionId, granteeUserId } },
+        update: { permission: validPerm },
+        create: {
+          collectionId,
+          granteeUserId,
+          permission: validPerm,
+          createdByUserId: req.user.id,
+        },
+        include: { granteeUser: { select: { id: true, name: true, email: true } } },
+      });
+
+      res.json({ permission: perm });
+    } catch (error) {
+      console.error("Admin grant collection permission error:", error);
+      res.status(500).json({ error: "Internal server error", message: "Failed to grant permission" });
+    }
+  });
+
+  // DELETE /auth/collections/:id/permissions/:permId — admin revoke
+  router.delete("/collections/:id/permissions/:permId", requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!(await ensureAuthEnabled(res))) return;
+      if (!requireCsrf(req, res)) return;
+      if (!requireAdmin(req, res)) return;
+
+      const collectionId = String(req.params.id || "").trim();
+      const permId = String(req.params.permId || "").trim();
+
+      await (prisma as any).collectionPermission.deleteMany({
+        where: { id: permId, collectionId },
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin revoke collection permission error:", error);
+      res.status(500).json({ error: "Internal server error", message: "Failed to revoke permission" });
+    }
+  });
 };

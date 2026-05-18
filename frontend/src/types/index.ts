@@ -19,4 +19,6 @@ export interface Collection {
   id: string;
   name: string;
   createdAt: number;
+  accessLevel?: "owner" | "view" | "edit";
+  sharedBy?: string; // userId of the owner, present when accessLevel is view/edit
 }

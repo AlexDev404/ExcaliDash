@@ -611,6 +611,87 @@ export const getCollections = async () => {
   return response.data;
 };
 
+// ── Collection sharing ─────────────────────────────────────────────────────
+
+export type CollectionPermissionRow = {
+  id: string;
+  granteeUserId: string;
+  permission: "view" | "edit";
+  createdAt: string | number | Date;
+  updatedAt: string | number | Date;
+  granteeUser: ShareResolvedUser;
+};
+
+export const getCollectionSharing = async (collectionId: string): Promise<{
+  permissions: CollectionPermissionRow[];
+}> => {
+  const response = await api.get<{ permissions: CollectionPermissionRow[] }>(
+    `/collections/${collectionId}/sharing`
+  );
+  return response.data;
+};
+
+export const resolveCollectionShareUsers = async (collectionId: string, q: string): Promise<ShareResolvedUser[]> => {
+  const response = await api.get<{ users: ShareResolvedUser[] }>(
+    `/collections/${collectionId}/share-resolve`,
+    { params: { q } }
+  );
+  return response.data.users;
+};
+
+export const upsertCollectionPermission = async (
+  collectionId: string,
+  params: { granteeUserId: string; permission: "view" | "edit" }
+): Promise<{ permission: CollectionPermissionRow }> => {
+  const response = await api.post<{ permission: CollectionPermissionRow }>(
+    `/collections/${collectionId}/permissions`,
+    params
+  );
+  return response.data;
+};
+
+export const revokeCollectionPermission = async (collectionId: string, permissionId: string): Promise<{ success: true }> => {
+  const response = await api.delete<{ success: true }>(
+    `/collections/${collectionId}/permissions/${permissionId}`
+  );
+  return response.data;
+};
+
+// ── Admin collection sharing ───────────────────────────────────────────────
+
+export type AdminCollection = {
+  id: string;
+  name: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+  user: ShareResolvedUser;
+  permissions: CollectionPermissionRow[];
+};
+
+export const adminGetCollections = async (): Promise<AdminCollection[]> => {
+  const response = await api.get<{ collections: AdminCollection[] }>("/auth/collections");
+  return response.data.collections;
+};
+
+export const adminUpsertCollectionPermission = async (
+  collectionId: string,
+  params: { granteeUserId: string; permission: "view" | "edit" }
+): Promise<{ permission: CollectionPermissionRow }> => {
+  const response = await api.post<{ permission: CollectionPermissionRow }>(
+    `/auth/collections/${collectionId}/permissions`,
+    params
+  );
+  return response.data;
+};
+
+export const adminRevokeCollectionPermission = async (collectionId: string, permissionId: string): Promise<{ success: true }> => {
+  const response = await api.delete<{ success: true }>(
+    `/auth/collections/${collectionId}/permissions/${permissionId}`
+  );
+  return response.data;
+};
+
 export const createCollection = async (name: string) => {
   const response = await api.post<Collection>("/collections", { name });
   return response.data;

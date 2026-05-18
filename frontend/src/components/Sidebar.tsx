@@ -1,10 +1,11 @@
 import clsx from 'clsx';
-import { Archive, Edit2, Folder, FolderOpen, LayoutGrid, LogOut, Plus, Settings as SettingsIcon, Shield, Trash2, User } from 'lucide-react';
+import { Archive, Edit2, Folder, FolderOpen, LayoutGrid, LogOut, Plus, Settings as SettingsIcon, Share2, Shield, Trash2, User, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type { Collection } from '../types';
 import { getInitialsFromName } from '../utils/user';
+import { CollectionShareModal } from './CollectionShareModal';
 import { ConfirmModal } from './ConfirmModal';
 import { Logo } from './Logo';
 
@@ -130,6 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'item' | 'background'; id?: string } | null>(null);
   const [collectionToDelete, setCollectionToDelete] = useState<string | null>(null);
   const [isTrashDragOver, setIsTrashDragOver] = useState(false);
+  const [shareCollection, setShareCollection] = useState<Collection | null>(null);
 
   useEffect(() => {
     const handleClickOutside = () => setContextMenu(null);
@@ -243,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </form>
             )}
 
-            {collections.filter(c => c.name !== 'Trash').map((collection) => (
+            {collections.filter(c => c.name !== 'Trash' && c.accessLevel !== 'view' && c.accessLevel !== 'edit').map((collection) => (
               <SidebarItem
                 key={collection.id}
                 id={collection.id}
@@ -262,9 +264,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onEditSubmit={handleEditSubmit}
                 onEditBlur={() => setEditingId(null)}
                 onDrop={onDrop}
+                extraAction={
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShareCollection(collection); }}
+                    className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-neutral-200 hover:bg-indigo-50 dark:hover:bg-neutral-700 rounded-md transition-all"
+                    title="Share collection"
+                  >
+                    <Share2 size={13} strokeWidth={2.5} />
+                  </button>
+                }
               />
             ))}
           </div>
+
+          {/* Shared with me — collections */}
+          {collections.some(c => c.accessLevel === 'view' || c.accessLevel === 'edit') && (
+            <div className="space-y-1">
+              <div className="px-6 pb-2 text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Users size={11} />
+                Shared with me
+              </div>
+              {collections.filter(c => c.accessLevel === 'view' || c.accessLevel === 'edit').map((collection) => (
+                <SidebarItem
+                  key={collection.id}
+                  id={collection.id}
+                  icon={selectedCollectionId === collection.id ? <FolderOpen size={18} /> : <Folder size={18} />}
+                  label={collection.name}
+                  isActive={selectedCollectionId === collection.id}
+                  onClick={() => onSelectCollection(collection.id)}
+                  onDrop={onDrop}
+                />
+              ))}
+            </div>
+          )}
         </nav>
 
         <div className="px-3 pt-3 sm:pt-4 pb-3 sm:pb-4 border-t border-slate-200/50 dark:border-slate-700/50 space-y-2">
@@ -430,7 +462,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onCancel={() => setCollectionToDelete(null)}
       />
 
-
+      {shareCollection && (
+        <CollectionShareModal
+          collectionId={shareCollection.id}
+          collectionName={shareCollection.name}
+          isOpen={Boolean(shareCollection)}
+          onClose={() => setShareCollection(null)}
+        />
+      )}
     </>
   );
 };

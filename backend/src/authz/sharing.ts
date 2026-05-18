@@ -125,12 +125,13 @@ export const getDrawingAccess = async (params: {
   if (params.principal?.kind === "user") {
     const drawing = await params.prisma.drawing.findUnique({
       where: { id: params.drawingId },
-      select: { userId: true },
+      select: { userId: true, collectionId: true },
     });
     if (!drawing) return "none";
     if (drawing.userId === params.principal.userId) return "owner";
 
-    const perm = await params.prisma.drawingPermission.findUnique({
+    // Check individual drawing-level permission.
+    const drawingPerm = await params.prisma.drawingPermission.findUnique({
       where: {
         drawingId_granteeUserId: {
           drawingId: params.drawingId,
@@ -139,7 +140,24 @@ export const getDrawingAccess = async (params: {
       },
       select: { permission: true },
     });
-    baseAccess = normalizeDrawingPermission(perm?.permission) ?? baseAccess;
+    const drawingAccess: DrawingAccess =
+      normalizeDrawingPermission(drawingPerm?.permission) ?? "none";
+
+    // Check collection-level permission (grants access to all drawings in that collection).
+    let collectionAccess: DrawingAccess = "none";
+    if (drawing.collectionId) {
+      const collPerm = await (params.prisma as any).collectionPermission.findFirst({
+        where: {
+          collectionId: drawing.collectionId,
+          granteeUserId: params.principal.userId,
+        },
+        select: { permission: true },
+      });
+      collectionAccess =
+        normalizeDrawingPermission(collPerm?.permission) ?? "none";
+    }
+
+    baseAccess = maxAccess(drawingAccess, collectionAccess);
   }
 
   // Google Docs-style link policy: applies regardless of whether the visitor is signed in.

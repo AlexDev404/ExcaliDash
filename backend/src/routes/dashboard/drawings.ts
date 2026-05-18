@@ -105,14 +105,25 @@ export const registerDrawingRoutes = (
         where.collectionId = { in: [trashCollectionId, "trash"] };
         collectionFilterKey = "trash";
       } else {
-        const collection = await prisma.collection.findFirst({
+        // Allow access if the user owns the collection OR has an explicit permission
+        const ownedCollection = await prisma.collection.findFirst({
           where: { id: normalizedCollectionId, userId: req.user.id },
         });
-        if (!collection) {
-          return res.status(404).json({ error: "Collection not found" });
+        if (ownedCollection) {
+          where.collectionId = normalizedCollectionId;
+          collectionFilterKey = `id:${normalizedCollectionId}`;
+        } else {
+          const sharedPerm = await (prisma as any).collectionPermission.findFirst({
+            where: { collectionId: normalizedCollectionId, granteeUserId: req.user.id },
+          });
+          if (!sharedPerm) {
+            return res.status(404).json({ error: "Collection not found" });
+          }
+          // Return drawings from the shared collection owned by someone else
+          delete (where as any).userId;
+          where.collectionId = normalizedCollectionId;
+          collectionFilterKey = `shared:${normalizedCollectionId}`;
         }
-        where.collectionId = normalizedCollectionId;
-        collectionFilterKey = `id:${normalizedCollectionId}`;
       }
     } else {
       where.OR = [
