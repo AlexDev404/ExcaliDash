@@ -1,8 +1,8 @@
 <img src="readme-assets/logoExcaliDash.png" alt="ExcaliDash Logo" width="80" height="88">
 
-# ExcaliDash
+# ExcaliDash (with PostgreSQL support)
 
-![License](https://img.shields.io/github/license/zimengxiong/ExcaliDash)
+![License](https://img.shields.io/github/license/alexdev404/ExcaliDash)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com)
 
