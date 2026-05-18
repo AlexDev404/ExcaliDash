@@ -61,11 +61,11 @@ const Lightbox: React.FC<{ src: string; name: string; onClose: () => void }> = (
 );
 
 // ─── Mention parsing ──────────────────────────────────────────────────────────
-const renderBody = (body: string): React.ReactNode[] => {
+const renderBody = (body: string, isMine: boolean): React.ReactNode[] => {
   const parts = body.split(/(@\S+)/g);
   return parts.map((part, i) =>
     part.startsWith('@') ? (
-      <span key={i} className="text-indigo-600 dark:text-indigo-400 font-semibold">
+      <span key={i} className={`font-semibold ${isMine ? 'text-white underline decoration-white/60' : 'text-indigo-600 dark:text-indigo-400'}`}>
         {part}
       </span>
     ) : (
@@ -100,7 +100,7 @@ const MessageBubble: React.FC<{ message: ChatMessage; isMine: boolean }> = ({ me
             : 'bg-slate-100 dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 rounded-bl-sm'
         }`}
       >
-        {message.body && <p className="whitespace-pre-wrap leading-relaxed">{renderBody(message.body)}</p>}
+        {message.body && <p className="whitespace-pre-wrap leading-relaxed">{renderBody(message.body, isMine)}</p>}
         {message.attachments.map((att, idx) =>
           att.mimeType.startsWith('image/') ? (
             <button
