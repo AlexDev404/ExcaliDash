@@ -639,12 +639,12 @@ export const registerDrawingRoutes = (
     if (!req.user) return res.status(401).json({ error: "Unauthorized" });
     const { id } = req.params;
 
-    const drawing = await prisma.drawing.findUnique({ where: { id }, select: { userId: true } });
+    const drawing = await prisma.drawing.findUnique({ where: { id }, select: { userId: true, collectionId: true } });
     if (!drawing || drawing.userId !== req.user.id) {
       return res.status(404).json({ error: "Drawing not found" });
     }
 
-    const [permissions, linkShares] = await Promise.all([
+    const [permissions, linkShares, collectionPermissions] = await Promise.all([
       prisma.drawingPermission.findMany({
         where: { drawingId: id },
         select: {
@@ -670,9 +670,31 @@ export const registerDrawingRoutes = (
         },
         orderBy: { createdAt: "desc" },
       }),
+      // Collection-level permissions: people who can see this drawing via its collection
+      drawing.collectionId
+        ? (prisma as any).collectionPermission.findMany({
+            where: { collectionId: drawing.collectionId },
+            select: {
+              id: true,
+              granteeUserId: true,
+              permission: true,
+              createdAt: true,
+              updatedAt: true,
+              granteeUser: { select: { id: true, name: true, email: true } },
+            },
+            orderBy: { createdAt: "asc" },
+          })
+        : Promise.resolve([]),
     ]);
 
-    return res.json({ permissions, linkShares });
+    // Exclude collection-level grantees that already have an explicit drawing permission
+    // (they'd appear in the drawing permissions list already)
+    const drawingGranteeIds = new Set(permissions.map((p) => p.granteeUserId));
+    const filteredCollectionPermissions = (collectionPermissions as any[]).filter(
+      (p: any) => !drawingGranteeIds.has(p.granteeUserId)
+    );
+
+    return res.json({ permissions, linkShares, collectionPermissions: filteredCollectionPermissions });
   }));
 
   app.post("/drawings/:id/permissions", requireAuth, asyncHandler(async (req, res) => {

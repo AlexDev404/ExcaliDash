@@ -542,11 +542,19 @@ export type DrawingLinkShareRow = {
 export const getDrawingSharing = async (drawingId: string): Promise<{
   permissions: DrawingPermissionRow[];
   linkShares: DrawingLinkShareRow[];
+  collectionPermissions: CollectionPermissionRow[];
 }> => {
-  const response = await api.get<{ permissions: DrawingPermissionRow[]; linkShares: DrawingLinkShareRow[] }>(
+  const response = await api.get<{
+    permissions: DrawingPermissionRow[];
+    linkShares: DrawingLinkShareRow[];
+    collectionPermissions: CollectionPermissionRow[];
+  }>(
     `/drawings/${drawingId}/sharing`
   );
-  return response.data;
+  return {
+    ...response.data,
+    collectionPermissions: response.data.collectionPermissions ?? [],
+  };
 };
 
 export const upsertDrawingPermission = async (

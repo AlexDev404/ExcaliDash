@@ -149,6 +149,7 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
   const [sharing, setSharing] = useState<{
     permissions: api.DrawingPermissionRow[];
     linkShares: api.DrawingLinkShareRow[];
+    collectionPermissions: api.CollectionPermissionRow[];
   } | null>(null);
 
   const [userQuery, setUserQuery] = useState("");
@@ -453,6 +454,27 @@ export const ShareModal: React.FC<Props> = ({ drawingId, drawingName, isOpen, on
                       ]}
                       align="right"
                     />
+                  </div>
+                </div>
+              ))}
+
+              {/* Collection-level grantees — read-only, access comes from the parent collection */}
+              {(sharing?.collectionPermissions || []).map((p) => (
+                <div key={`col-${p.id}`} className="flex items-center gap-3 px-1 py-1.5">
+                  <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-neutral-800 flex items-center justify-center text-slate-500 dark:text-neutral-400 font-semibold text-sm border border-slate-200 dark:border-neutral-600 shrink-0">
+                    {p.granteeUser.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <div className="text-xs font-semibold text-slate-900 dark:text-neutral-100 leading-tight truncate">{p.granteeUser.name}</div>
+                    <div className="text-[10px] font-semibold text-slate-500 dark:text-neutral-400 mt-0.5 truncate">{p.granteeUser.email}</div>
+                  </div>
+                  <div className="shrink-0 flex flex-col items-end gap-0.5">
+                    <span className="text-[8px] font-semibold uppercase tracking-widest text-slate-400 dark:text-neutral-500 pr-1">
+                      {p.permission === "edit" ? "Editor" : "Viewer"}
+                    </span>
+                    <span className="text-[8px] font-semibold text-indigo-400 dark:text-indigo-500 pr-1">
+                      via collection
+                    </span>
                   </div>
                 </div>
               ))}

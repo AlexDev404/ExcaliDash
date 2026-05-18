@@ -278,6 +278,30 @@ export const registerSocketHandlers = ({
       }
     );
 
+    // ── Chat relay ────────────────────────────────────────────────────────────
+    // Pure relay: server overrides author identity fields from trusted presence
+    // map to prevent spoofing, then broadcasts to the rest of the room.
+    // No persistence — messages exist only in participants' browsers (IndexedDB).
+    socket.on("chat-message", (data) => {
+      const drawingId = typeof data?.drawingId === "string" ? data.drawingId : null;
+      if (!drawingId || !authorizedDrawingAccess.has(drawingId)) return;
+      const roomId = `drawing_${drawingId}`;
+      const users = roomUsers.get(roomId) || [];
+      const self = users.find((u) => u.socketId === socket.id);
+      if (!self) return;
+      // Stamp server-trusted identity so clients can't forge author fields
+      const safePayload = {
+        ...data,
+        message: {
+          ...(data.message ?? {}),
+          authorId: self.id,
+          authorName: self.name,
+          authorColor: self.color,
+        },
+      };
+      socket.to(roomId).emit("chat-message", safePayload);
+    });
+
     socket.on("disconnect", () => {
       socketPrincipalMap.delete(socket.id);
       roomUsers.forEach((users, roomId) => {

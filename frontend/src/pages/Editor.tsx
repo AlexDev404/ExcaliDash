@@ -7,7 +7,7 @@ import {
 import clsx from 'clsx';
 import debounce from 'lodash/debounce';
 import throttle from 'lodash/throttle';
-import { ArrowLeft, ChevronDown, ChevronUp, Download, Loader2, Share2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Download, Loader2, MessageSquare, Share2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Socket, io } from 'socket.io-client';
@@ -31,6 +31,8 @@ import {
     isStaleNonRenderableSnapshot,
     isSuspiciousEmptySnapshot,
 } from './editor/shared';
+import { ChatPanel, type ChatPanelHandle } from './editor/chat/ChatPanel';
+import type { ChatMessagePayload } from './editor/chat/ChatTypes';
 import { useEditorChrome } from './editor/useEditorChrome';
 import { useEditorIdentity } from './editor/useEditorIdentity';
 
@@ -206,6 +208,11 @@ export const Editor: React.FC = () => {
   const [isSavingOnLeave, setIsSavingOnLeave] = useState(false);
   const [autoHideEnabled, setAutoHideEnabled] = useState(getStoredAutoHideEnabled);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatUnread, setChatUnread] = useState(false);
+  const chatPanelRef = useRef<ChatPanelHandle | null>(null);
+  const isChatOpenRef = useRef(false);
+  useEffect(() => { isChatOpenRef.current = isChatOpen; }, [isChatOpen]);
   const { isHeaderVisible, setIsHeaderVisible } = useEditorChrome({
     drawingName,
     autoHideEnabled,
@@ -697,6 +704,16 @@ export const Editor: React.FC = () => {
       }
     );
 
+    // ── Chat relay ────────────────────────────────────────────────────────────
+    socket.on("chat-message", (payload: ChatMessagePayload) => {
+      // Deliver to the panel so it can persist + render the incoming message
+      chatPanelRef.current?.receiveMessage(payload);
+      // Show unread dot if panel is closed
+      if (!isChatOpenRef.current) {
+        setChatUnread(true);
+      }
+    });
+
 
     const handleActivity = (isActive: boolean) => {
       socket.emit('user-activity', { drawingId: id, isActive });
@@ -721,6 +738,7 @@ export const Editor: React.FC = () => {
       socket.off('error');
       socket.off('cursor-move');
       socket.off('element-update');
+      socket.off('chat-message');
       socket.disconnect();
       if (remoteFlushRafIdRef.current !== null) {
         cancelAnimationFrame(remoteFlushRafIdRef.current);
@@ -1788,6 +1806,25 @@ export const Editor: React.FC = () => {
 
           <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
 
+          {/* Chat toggle */}
+          <button
+            onClick={() => { setIsChatOpen(v => !v); setChatUnread(false); }}
+            className={clsx(
+              "relative p-2 rounded-lg transition-colors",
+              isChatOpen
+                ? "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
+                : "hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-300"
+            )}
+            title="Toggle chat"
+          >
+            <MessageSquare size={20} />
+            {chatUnread && !isChatOpen && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500" />
+            )}
+          </button>
+
+          <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
+
           <button
             onClick={() => {
               if (excalidrawAPI.current) {
@@ -1896,6 +1933,19 @@ export const Editor: React.FC = () => {
           drawingName={drawingName}
           isOpen={isShareOpen}
           onClose={() => setIsShareOpen(false)}
+        />
+      ) : null}
+
+      {id && isChatOpen ? (
+        <ChatPanel
+          ref={chatPanelRef}
+          drawingId={id}
+          socket={socketRef.current}
+          peers={peers.map(p => ({ id: p.id, name: p.name, color: p.color }))}
+          myId={socketMe.id}
+          myName={socketMe.name}
+          myColor={socketMe.color}
+          onClose={() => setIsChatOpen(false)}
         />
       ) : null}
     </div>
