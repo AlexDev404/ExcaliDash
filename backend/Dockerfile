@@ -8,7 +8,7 @@ ARG DB_PROVIDER=sqlite
 ENV DB_PROVIDER=${DB_PROVIDER}
 
 # Native build deps for modules that may compile from source (e.g., better-sqlite3 on arm64)
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ bash
 
 # Copy package files
 COPY package*.json ./
@@ -21,7 +21,7 @@ RUN npm ci && npm cache clean --force
 COPY prisma ./prisma/
 
 # Configure database provider and install correct migrations
-RUN sh prisma/setup-db.sh
+RUN bash prisma/setup-db.sh
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -49,16 +49,15 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
-    npm ci --omit=dev && \
-    npm cache clean --force && \
-    apk del .build-deps
-
 # Copy prisma schema and all migration variants for runtime and hydration template
 COPY prisma ./prisma/
-# Configure provider + install correct migrations in the runtime prisma dir
-RUN sh prisma/setup-db.sh
+
+# Install production dependencies only, configure DB provider, then remove build deps
+RUN apk add --no-cache --virtual .build-deps python3 make g++ bash && \
+    npm ci --omit=dev && \
+    npm cache clean --force && \
+    bash prisma/setup-db.sh && \
+    apk del .build-deps
 # Create the hydration template from the configured prisma dir
 RUN cp -R prisma prisma_template
 

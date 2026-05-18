@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # setup-db.sh — Configure Prisma schema and migrations for the target database.
 #
 # Provider selection (checked in order):

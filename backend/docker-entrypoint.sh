@@ -82,9 +82,9 @@ else
     echo "Syncing schema and migrations from template..."
 fi
 
-mkdir -p /app/prisma/migrations
 cp /app/prisma_template/schema.prisma /app/prisma/schema.prisma
-cp -R /app/prisma_template/migrations/. /app/prisma/migrations/
+rm -rf /app/prisma/migrations
+cp -R /app/prisma_template/migrations /app/prisma/migrations
 
 # 2. Fix permissions unconditionally (Running as root)
 echo "Fixing filesystem permissions..."
