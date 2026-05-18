@@ -1,4 +1,4 @@
-import { KeyRound, LogIn, Shield } from 'lucide-react';
+import { KeyRound, LogIn, Pencil, Shield, Trash2 } from 'lucide-react';
 import React from 'react';
 import type { AdminUser } from './types';
 
@@ -12,6 +12,8 @@ type UsersTableProps = {
   onToggleMustReset: (user: AdminUser) => void;
   onImpersonate: (user: AdminUser) => void;
   onResetPassword: (user: AdminUser) => void | Promise<void>;
+  onEdit: (user: AdminUser) => void;
+  onDelete: (user: AdminUser) => void;
 };
 
 export const UsersTable: React.FC<UsersTableProps> = ({
@@ -24,6 +26,8 @@ export const UsersTable: React.FC<UsersTableProps> = ({
   onToggleMustReset,
   onImpersonate,
   onResetPassword,
+  onEdit,
+  onDelete,
 }) => (
   <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md overflow-hidden">
     <div className="px-4 sm:px-6 py-4 border-b-2 border-slate-200 dark:border-neutral-700 flex items-center gap-3">
@@ -96,6 +100,13 @@ export const UsersTable: React.FC<UsersTableProps> = ({
               <td className="px-4 sm:px-6 py-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
+                    onClick={() => onEdit(user)}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-neutral-200 font-semibold shadow-sm transition-all"
+                  >
+                    <Pencil size={16} />
+                    Edit
+                  </button>
+                  <button
                     onClick={() => onImpersonate(user)}
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-neutral-200 font-semibold shadow-sm transition-all"
                   >
@@ -114,6 +125,15 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                   >
                     <KeyRound size={16} />
                     {resetPasswordLoadingId === user.id ? 'Generating…' : 'Reset Password'}
+                  </button>
+                  <button
+                    onClick={() => onDelete(user)}
+                    disabled={user.id === currentUserId}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-neutral-900 text-rose-600 dark:text-rose-400 font-semibold shadow-sm transition-all disabled:opacity-60"
+                    title={user.id === currentUserId ? 'You cannot delete your own account' : 'Permanently delete this user'}
+                  >
+                    <Trash2 size={16} />
+                    Delete
                   </button>
                 </div>
               </td>

@@ -744,6 +744,69 @@ export const registerAdminRoutes = (deps: RegisterAdminRoutesDeps) => {
     }
   });
 
+  router.delete("/users/:id", requireAuth, async (req: Request, res: Response) => {
+    try {
+      if (!(await ensureAuthEnabled(res))) return;
+      if (!requireCsrf(req, res)) return;
+      if (!requireAdmin(req, res)) return;
+
+      const userId = String(req.params.id || "").trim();
+      if (!userId) {
+        return res.status(400).json({ error: "Bad request", message: "Invalid user id" });
+      }
+
+      if (userId === req.user.id) {
+        return res.status(409).json({
+          error: "Conflict",
+          message: "You cannot delete your own account",
+        });
+      }
+
+      const target = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, email: true, role: true, isActive: true },
+      });
+
+      if (!target) {
+        return res.status(404).json({ error: "Not found", message: "User not found" });
+      }
+
+      if (target.role === "ADMIN" && target.isActive) {
+        const admins = await countActiveAdmins();
+        if (admins <= 1) {
+          return res.status(409).json({
+            error: "Conflict",
+            message: "There must be at least one active admin",
+          });
+        }
+      }
+
+      // Delete the user-specific library record (no FK cascade covers this)
+      await prisma.library.deleteMany({ where: { id: `user_${userId}` } });
+
+      await prisma.user.delete({ where: { id: userId } });
+
+      if (config.enableAuditLogging) {
+        await logAuditEvent({
+          userId: req.user.id,
+          action: "admin_user_deleted",
+          resource: `user:${userId}`,
+          ipAddress: req.ip || req.connection.remoteAddress || undefined,
+          userAgent: req.headers["user-agent"] || undefined,
+          details: { deletedUserId: userId, deletedEmail: target.email },
+        });
+      }
+
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Delete user error:", error);
+      res.status(500).json({
+        error: "Internal server error",
+        message: "Failed to delete user",
+      });
+    }
+  });
+
   router.post("/impersonate", requireAuth, accountActionRateLimiter, async (req: Request, res: Response) => {
     try {
       if (!(await ensureAuthEnabled(res))) return;

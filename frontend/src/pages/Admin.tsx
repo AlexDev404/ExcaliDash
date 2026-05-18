@@ -4,6 +4,7 @@ import { useBeforeUnload, useNavigate } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
 import * as api from '../api';
 import { Layout } from '../components/Layout';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { PasswordRequirements } from '../components/PasswordRequirements';
 import { useAuth } from '../context/AuthContext';
 import type { Collection } from '../types';
@@ -15,6 +16,7 @@ import {
 } from '../utils/impersonation';
 import { getPasswordPolicy, validatePassword } from '../utils/passwordPolicy';
 import { AccessControlCard } from './admin/AccessControlCard';
+import { EditUserModal } from './admin/EditUserModal';
 import { LoginRateLimitCard } from './admin/LoginRateLimitCard';
 import { UserActionModals } from './admin/UserActionModals';
 import { UsersTable } from './admin/UsersTable';
@@ -54,6 +56,9 @@ export const Admin: React.FC = () => {
   const [createActive, setCreateActive] = useState(true);
 
   const [impersonateTarget, setImpersonateTarget] = useState<AdminUser | null>(null);
+  const [editTarget, setEditTarget] = useState<AdminUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [resetPasswordLoadingId, setResetPasswordLoadingId] = useState<string | null>(null);
   const [resetPasswordResult, setResetPasswordResult] = useState<{ email: string; tempPassword: string } | null>(null);
 
@@ -463,6 +468,25 @@ export const Admin: React.FC = () => {
     }
   };
 
+  const deleteUser = async (target: AdminUser) => {
+    setDeletingId(target.id);
+    setError('');
+    setSuccess('');
+    try {
+      await api.api.delete(`/auth/users/${target.id}`);
+      setUsers(prev => prev.filter(u => u.id !== target.id));
+      setSuccess(`User ${target.email} deleted`);
+    } catch (err: unknown) {
+      let message = 'Failed to delete user';
+      if (api.isAxiosError(err)) {
+        message = err.response?.data?.message || err.response?.data?.error || message;
+      }
+      setError(message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const startImpersonation = async (target: AdminUser) => {
     setError('');
     setSuccess('');
@@ -762,6 +786,36 @@ export const Admin: React.FC = () => {
         }
         onImpersonate={setImpersonateTarget}
         onResetPassword={generateTempPassword}
+        onEdit={setEditTarget}
+        onDelete={setDeleteTarget}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title="Delete user?"
+        message={
+          deleteTarget
+            ? `This will permanently delete ${deleteTarget.email} and all their drawings, collections, and data. This cannot be undone.`
+            : ''
+        }
+        confirmText={deletingId ? 'Deleting…' : 'Delete user'}
+        isDangerous
+        onConfirm={async () => {
+          if (deleteTarget) await deleteUser(deleteTarget);
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      <EditUserModal
+        user={editTarget}
+        isOpen={Boolean(editTarget)}
+        isSelf={editTarget?.id === authUser?.id}
+        onClose={() => setEditTarget(null)}
+        onSave={async (id, data) => {
+          await patchUser(id, data);
+          setEditTarget(null);
+        }}
       />
 
       <UserActionModals

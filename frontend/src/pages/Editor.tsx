@@ -189,7 +189,7 @@ export const Editor: React.FC = () => {
     if (!autoHideStorageKey) return true;
     try {
       const raw = window.localStorage.getItem(autoHideStorageKey);
-      if (raw === null) return true;
+      if (raw === null) return false;
       return raw === "1" || raw === "true";
     } catch {
       return true;
