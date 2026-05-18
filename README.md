@@ -10,6 +10,9 @@ A self-hosted dashboard and organizer for [Excalidraw](https://github.com/excali
 
 ![](readme-assets/demo.gif)
 
+<img width="1896" height="890" alt="image" src="https://github.com/user-attachments/assets/f90c5112-4c0e-4829-be48-0975aaebb3b2" />
+
+
 ## Table of Contents
 
 - [Features](#features)
