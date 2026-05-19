@@ -247,16 +247,31 @@ export const registerAccountRoutes = (deps: RegisterAccountRoutesDeps) => {
       if (!parsed.success) {
         return res.status(400).json({
           error: "Validation error",
-          message: "Invalid name format",
+          message: parsed.error.issues[0]?.message ?? "Invalid profile data",
         });
       }
 
       const sanitizedName = sanitizeText(parsed.data.name, 100);
-      const updatedUser = await prisma.user.update({
-        where: { id: req.user.id },
-        data: { name: sanitizedName },
-        select: { id: true, email: true, name: true, createdAt: true, updatedAt: true },
-      });
+      const usernameValue = parsed.data.username === null ? null
+        : parsed.data.username ? parsed.data.username.trim()
+        : undefined; // undefined = don't touch the column
+
+      let updatedUser;
+      try {
+        updatedUser = await prisma.user.update({
+          where: { id: req.user.id },
+          data: {
+            name: sanitizedName,
+            ...(usernameValue !== undefined ? { username: usernameValue } : {}),
+          },
+          select: { id: true, email: true, name: true, username: true, createdAt: true, updatedAt: true },
+        });
+      } catch (dbErr: any) {
+        if (dbErr?.code === 'P2002' && dbErr?.meta?.target?.includes?.('username')) {
+          return res.status(409).json({ error: "Conflict", message: "That username is already taken" });
+        }
+        throw dbErr;
+      }
 
       if (config.enableAuditLogging) {
         await logAuditEvent({

@@ -14,6 +14,7 @@ import {
 interface User {
   id: string;
   name: string;
+  username?: string;
   initials: string;
   color: string;
   socketId: string;
@@ -177,23 +178,27 @@ export const registerSocketHandlers = ({
               : socket.id;
           let trustedName = toPresenceName(user?.name);
 
+          let trustedUsername: string | undefined;
+
           if (!principal) {
             // Never trust client-provided ids for anonymous/share-link sessions; prevent spoofing/collisions.
             trustedUserId = `anon:${socket.id}`.slice(0, 200);
           } else if (principal?.kind === "user" && principal.userId !== BOOTSTRAP_USER_ID) {
             const account = await prisma.user.findUnique({
               where: { id: principal.userId },
-              select: { id: true, name: true },
+              select: { id: true, name: true, username: true },
             });
             if (account) {
               trustedUserId = account.id;
               trustedName = toPresenceName(account.name);
+              trustedUsername = account.username ?? undefined;
             }
           }
 
           const newUser: User = {
             id: trustedUserId,
             name: trustedName,
+            username: trustedUsername,
             initials: toPresenceInitials(trustedName),
             color: toPresenceColor(user?.color),
             socketId: socket.id,
@@ -295,7 +300,7 @@ export const registerSocketHandlers = ({
         message: {
           ...(data.message ?? {}),
           authorId: self.id,
-          authorName: self.name,
+          authorName: self.username ?? self.name,
           authorColor: self.color,
         },
       };

@@ -3,6 +3,7 @@ import { getInitialsFromName } from "./user";
 export interface UserIdentity {
   id: string;
   name: string;
+  username?: string;
   initials: string;
   color: string;
 }

@@ -20,6 +20,7 @@ export const Profile: React.FC = () => {
     const [success, setSuccess] = useState('');
 
     const [name, setName] = useState('');
+    const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [showEmailForm, setShowEmailForm] = useState(false);
     const [emailCurrentPassword, setEmailCurrentPassword] = useState('');
@@ -43,6 +44,7 @@ export const Profile: React.FC = () => {
                 if (authUser) {
                     setName(authUser.name);
                     setEmail(authUser.email);
+                    setUsername(authUser.username ?? '');
                 }
             } catch (err) {
                 console.error('Failed to fetch data:', err);
@@ -79,7 +81,7 @@ export const Profile: React.FC = () => {
         await api.deleteCollection(id);
     };
 
-    const handleUpdateName = async () => {
+    const handleUpdateProfile = async () => {
         if (mustResetPassword) {
             setError('You must reset your password before updating your profile');
             return;
@@ -88,26 +90,34 @@ export const Profile: React.FC = () => {
             setError('Name cannot be empty');
             return;
         }
+        if (username && !/^[a-zA-Z0-9_]+$/.test(username)) {
+            setError('Username may only contain letters, numbers, and underscores');
+            return;
+        }
+        if (username && (username.length < 2 || username.length > 30)) {
+            setError('Username must be between 2 and 30 characters');
+            return;
+        }
 
         setLoading(true);
         setError('');
         setSuccess('');
 
         try {
-            const response = await api.api.put<{ user: { id: string; email: string; name: string; createdAt: string; updatedAt: string } }>('/auth/profile', { name: name.trim() });
-            setSuccess('Name updated successfully');
+            const response = await api.api.put<{ user: { id: string; email: string; name: string; username?: string | null; createdAt: string; updatedAt: string } }>(
+                '/auth/profile',
+                { name: name.trim(), username: username.trim() || null },
+            );
+            setSuccess('Profile updated successfully');
             if (response.data?.user) {
                 localStorage.setItem('excalidash-user', JSON.stringify(response.data.user));
                 setTimeout(() => window.location.reload(), 500);
             }
         } catch (err: unknown) {
-            let message = 'Failed to update name';
+            let message = 'Failed to update profile';
             if (api.isAxiosError(err)) {
-                if (err.response?.data?.message) {
-                    message = err.response.data.message;
-                } else if (err.response?.data?.error) {
-                    message = err.response.data.error;
-                }
+                if (err.response?.data?.message) message = err.response.data.message;
+                else if (err.response?.data?.error) message = err.response.data.error;
             }
             setError(message);
         } finally {
@@ -340,25 +350,46 @@ export const Profile: React.FC = () => {
                             <label htmlFor="name" className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
                                 Display Name
                             </label>
-                            <div className="flex gap-3">
-                                <input
-                                    id="name"
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="flex-1 px-4 py-3 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 font-medium"
-                                    placeholder="Your name"
-                                />
-	                                <button
-	                                    onClick={handleUpdateName}
-                                            disabled={mustResetPassword || loading || !name.trim() || name === authUser?.name}
-                                            className="px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md dark:hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-	                                >
-	                                    <Save size={18} />
-	                                    Save
-	                                </button>
-                            </div>
+                            <input
+                                id="name"
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 font-medium"
+                                placeholder="Your name"
+                            />
                         </div>
+
+                        <div>
+                            <label htmlFor="username" className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-2">
+                                Username
+                                <span className="ml-2 text-xs font-normal text-slate-400 dark:text-neutral-500">Used for @mentions in chat</span>
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 font-medium select-none">@</span>
+                                <input
+                                    id="username"
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                                    className="w-full pl-8 pr-4 py-3 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 font-medium"
+                                    placeholder="your_username"
+                                    maxLength={30}
+                                />
+                            </div>
+                            <p className="mt-1.5 text-xs text-slate-400 dark:text-neutral-500">
+                                Letters, numbers, and underscores only. Leave blank to use your display name for mentions.
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={handleUpdateProfile}
+                            disabled={mustResetPassword || loading || !name.trim() || (name === authUser?.name && username === (authUser?.username ?? ''))}
+                            className="px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white font-semibold rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                            <Save size={18} />
+                            {loading ? 'Saving...' : 'Save Changes'}
+                        </button>
                     </div>
                 </div>
 

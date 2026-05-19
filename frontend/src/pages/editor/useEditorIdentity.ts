@@ -8,6 +8,7 @@ import {
 type AuthUser = {
   id: string;
   name: string;
+  username?: string | null;
 } | null | undefined;
 
 export const useEditorIdentity = (user: AuthUser): UserIdentity => {
@@ -16,6 +17,7 @@ export const useEditorIdentity = (user: AuthUser): UserIdentity => {
       return {
         id: user.id,
         name: user.name,
+        username: user.username ?? undefined,
         initials: getInitialsFromName(user.name),
         color: getColorFromString(user.id),
       };

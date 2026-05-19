@@ -5,15 +5,22 @@ import React, {
   useLayoutEffect,
   useRef,
   useState,
-} from 'react';import type { ChatAttachment, ChatMessage, ChatThread } from './ChatTypes';
+} from 'react';
+import type { ChatAttachment, ChatMessage, ChatThread } from './ChatTypes';
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5 MB
 
 interface Peer {
   id: string;
+  /** Display name */
   name: string;
+  /** Username handle (may be undefined if user hasn't set one yet) */
+  username?: string;
   color: string;
 }
+
+/** The string used in @mention tokens for a peer — username if set, else display name */
+const mentionHandle = (p: Peer) => p.username ?? p.name;
 
 interface ChatThreadViewProps {
   threadId: string;
@@ -359,8 +366,9 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
   }, []);
 
   const selectMention = useCallback((peer: Peer) => {
+    const handle = mentionHandle(peer);
     const cursor = inputRef.current?.selectionStart ?? body.length;
-    const before = body.slice(0, mentionStart) + `@${peer.name} `;
+    const before = body.slice(0, mentionStart) + `@${handle} `;
     const after = body.slice(cursor);
     setBody(before + after);
     setMentionQuery(null);
@@ -373,8 +381,10 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
 
   const extractMentions = useCallback((text: string): string[] => {
     const tokens = text.match(/@(\S+)/g)?.map(t => t.slice(1)) ?? [];
+    // Match against both username and display name so old messages and
+    // messages composed before a username was set still resolve correctly
     return peers
-      .filter(p => tokens.includes(p.name))
+      .filter(p => tokens.includes(p.username ?? '') || tokens.includes(p.name))
       .map(p => p.id);
   }, [peers]);
 
@@ -416,7 +426,14 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
   }, []);
 
   const filteredPeers = mentionQuery !== null
-    ? peers.filter(p => p.id !== myId && p.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+    ? peers.filter(p => {
+        if (p.id === myId) return false;
+        const q = mentionQuery.toLowerCase();
+        return (
+          mentionHandle(p).toLowerCase().includes(q) ||
+          p.name.toLowerCase().includes(q)
+        );
+      })
     : [];
 
   return (
@@ -485,7 +502,14 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
               >
                 {peer.name.charAt(0).toUpperCase()}
               </div>
-              <span className="text-xs font-semibold text-slate-900 dark:text-neutral-100">{peer.name}</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-semibold text-slate-900 dark:text-neutral-100 truncate">
+                  @{mentionHandle(peer)}
+                </span>
+                {peer.username && peer.username !== peer.name && (
+                  <span className="text-[10px] text-slate-400 dark:text-neutral-500 truncate">{peer.name}</span>
+                )}
+              </div>
             </button>
           ))}
         </div>

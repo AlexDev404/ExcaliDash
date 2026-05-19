@@ -109,6 +109,7 @@ export const passwordResetConfirmSchema = z.object({
 
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(1).max(100),
+  username: z.string().trim().min(2).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Username may only contain letters, numbers, and underscores').optional().nullable(),
 });
 
 export const updateEmailSchema = z.object({

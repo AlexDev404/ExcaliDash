@@ -233,7 +233,7 @@ export const Editor: React.FC = () => {
 
   useEffect(() => {
     setSocketMe(me);
-  }, [me.id, me.name, me.initials, me.color]);
+  }, [me.id, me.name, me.username, me.initials, me.color]);
 
   useEffect(() => {
     socketMeRef.current = socketMe;
@@ -510,6 +510,7 @@ export const Editor: React.FC = () => {
       const next: UserIdentity = {
         id: serverUser.id,
         name: typeof serverUser.name === "string" ? serverUser.name : me.name,
+        username: me.username, // preserve local username — server doesn't send it
         initials: typeof serverUser.initials === "string" ? serverUser.initials : me.initials,
         color: typeof serverUser.color === "string" ? serverUser.color : me.color,
       };
@@ -1959,17 +1960,19 @@ export const Editor: React.FC = () => {
         />
       ) : null}
 
-      {id && isChatOpen ? (
-        <ChatPanel
-          ref={chatPanelRef}
-          drawingId={id}
-          socket={socketRef.current}
-          peers={peers.map(p => ({ id: p.id, name: p.name, color: p.color }))}
-          myId={socketMe.id}
-          myName={socketMe.name}
-          myColor={socketMe.color}
-          onClose={() => setIsChatOpen(false)}
-        />
+      {id ? (
+        <div className={isChatOpen ? undefined : 'hidden'}>
+          <ChatPanel
+            ref={chatPanelRef}
+            drawingId={id}
+            socket={socketRef.current}
+            peers={peers.map(p => ({ id: p.id, name: p.name, username: p.username, color: p.color }))}
+            myId={socketMe.id}
+            myName={socketMe.username ?? socketMe.name}
+            myColor={socketMe.color}
+            onClose={() => setIsChatOpen(false)}
+          />
+        </div>
       ) : null}
 
       {/* Mention toasts — rendered outside ChatPanel so they work even when chat is closed */}
