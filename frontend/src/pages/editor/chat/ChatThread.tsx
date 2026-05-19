@@ -540,6 +540,33 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
     }
   }, [handleSend]);
 
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData?.items ?? []);
+    const imageItems = items.filter(item => item.type.startsWith('image/'));
+    if (imageItems.length === 0) return;
+    e.preventDefault();
+    const results: ChatAttachment[] = [];
+    for (const item of imageItems) {
+      const file = item.getAsFile();
+      if (!file) continue;
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        alert(`Pasted image is too large (max 5 MB).`);
+        continue;
+      }
+      const dataURL = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(file);
+      });
+      const name = file.name || `pasted-image-${Date.now()}.${file.type.split('/')[1] || 'png'}`;
+      results.push({ name, mimeType: file.type, dataURL, size: file.size });
+    }
+    if (results.length > 0) {
+      setPendingAttachments(prev => [...prev, ...results]);
+    }
+  }, []);
+
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
@@ -730,6 +757,7 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
           value={body}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           rows={1}
           placeholder="Message… (Shift+Enter for new line)"
           className="flex-1 resize-none text-sm px-3 py-2 rounded-xl bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 text-slate-900 dark:text-neutral-100 placeholder:text-slate-400 outline-none focus:border-indigo-400 transition-colors min-h-[38px] max-h-[200px] leading-relaxed overflow-y-hidden scrollbar-thin scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-thumb-neutral-600 dark:hover:scrollbar-thumb-neutral-500 scrollbar-track-transparent"
