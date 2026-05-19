@@ -491,7 +491,7 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Messages */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0 scrollbar-thin scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-thumb-neutral-600 dark:hover:scrollbar-thumb-neutral-500 scrollbar-track-transparent">
         {messages.length === 0 && (
           <p className="text-center text-xs text-slate-400 dark:text-neutral-500 pt-6">
             No messages yet. Say hello!
