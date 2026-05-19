@@ -1,4 +1,4 @@
-import { AlertTriangle, Info, MoreVertical, Plus, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Info, MoreVertical, Pin, Plus, Trash2, X } from 'lucide-react';
 import {
   forwardRef,
   useCallback,
@@ -8,7 +8,8 @@ import {
   useState,
 } from 'react';
 import { Socket } from 'socket.io-client';
-import type { ChatAttachment, ChatMessage, ChatMessagePayload, ChatThread } from './ChatTypes';
+import { toast } from 'sonner';
+import type { ChatAttachment, ChatMessage, ChatMessagePayload, ChatPinPayload, ChatThread, ChatUnpinPayload } from './ChatTypes';
 import { ChatThreadView } from './ChatThread';
 import { useChatStorage } from './useChatStorage';
 
@@ -32,6 +33,10 @@ interface ChatPanelProps {
 export interface ChatPanelHandle {
   /** Called by Editor when a chat-message socket event arrives */
   receiveMessage: (payload: ChatMessagePayload) => void;
+  /** Called by Editor when a chat-pin socket event arrives */
+  receivePin: (payload: ChatPinPayload) => void;
+  /** Called by Editor when a chat-unpin socket event arrives */
+  receiveUnpin: (payload: ChatUnpinPayload) => void;
 }
 
 const generateId = () =>
@@ -67,6 +72,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(({
   useEffect(() => {
     const init = async () => {
       await storageRef.current.ensureMainThread();
+      await storageRef.current.ensurePinboardThread();
       const ts = await storageRef.current.getThreads();
       setThreads(ts);
     };
@@ -113,7 +119,58 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(({
     }
   }, [threads, activeThreadId]);
 
-  useImperativeHandle(ref, () => ({ receiveMessage }), [receiveMessage]);
+  // ── Pin / Unpin ───────────────────────────────────────────────────────────────
+  const handlePin = useCallback(async (message: ChatMessage) => {
+    try {
+      await storageRef.current.pinMessage(message);
+      // Refresh pinboard if currently viewing it
+      if (activeThreadId === 'pinboard') {
+        const msgs = await storageRef.current.getMessages('pinboard');
+        setMessages(msgs);
+      }
+      if (socket) {
+        const payload: ChatPinPayload = { drawingId, message };
+        socket.emit('chat-pin', payload);
+      }
+      toast.success('Message pinned for everyone');
+    } catch {
+      toast.error('Failed to pin message');
+    }
+  }, [activeThreadId, socket, drawingId]);
+
+  const handleUnpin = useCallback(async (originalMessageId: string) => {
+    try {
+      await storageRef.current.unpinMessage(originalMessageId);
+      if (activeThreadId === 'pinboard') {
+        setMessages(prev => prev.filter(m => m.pinnedFromMessageId !== originalMessageId));
+      }
+      if (socket) {
+        const payload: ChatUnpinPayload = { drawingId, originalMessageId };
+        socket.emit('chat-unpin', payload);
+      }
+      toast.success('Message unpinned');
+    } catch {
+      toast.error('Failed to unpin message');
+    }
+  }, [activeThreadId, socket, drawingId]);
+
+  // ── Incoming pin/unpin from peers ─────────────────────────────────────────────
+  const receivePin = useCallback(async (payload: ChatPinPayload) => {
+    await storageRef.current.pinMessage(payload.message);
+    if (activeThreadId === 'pinboard') {
+      const msgs = await storageRef.current.getMessages('pinboard');
+      setMessages(msgs);
+    }
+  }, [activeThreadId]);
+
+  const receiveUnpin = useCallback(async (payload: ChatUnpinPayload) => {
+    await storageRef.current.unpinMessage(payload.originalMessageId);
+    if (activeThreadId === 'pinboard') {
+      setMessages(prev => prev.filter(m => m.pinnedFromMessageId !== payload.originalMessageId));
+    }
+  }, [activeThreadId]);
+
+  useImperativeHandle(ref, () => ({ receiveMessage, receivePin, receiveUnpin }), [receiveMessage, receivePin, receiveUnpin]);
 
   // ── Send message ──────────────────────────────────────────────────────────────
   const handleSend = useCallback(async (
@@ -231,7 +288,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(({
             />
             {/\s/.test(newThreadName) && (
               <div className="flex items-start gap-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-2.5 py-2">
-                <span className="text-amber-500 text-xs mt-px flex-shrink-0">⚠</span>
+                <AlertTriangle size={12} className="text-amber-500 mt-px flex-shrink-0" />
                 <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-snug">
                   Spaces aren't allowed in thread names. It will be created as{' '}
                   <span className="font-semibold">"{newThreadName.replace(/\s+/g, '_')}"</span>.
@@ -285,12 +342,17 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(({
           <div key={t.id} className="relative group/tab flex items-center">
             <button
               onClick={() => setActiveThreadId(t.id)}
-              className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${
+              className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 ${
                 t.id === activeThreadId
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-slate-100 dark:bg-neutral-800 text-slate-600 dark:text-neutral-400 hover:bg-slate-200 dark:hover:bg-neutral-700'
+                  ? t.isPinboard
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-indigo-600 text-white'
+                  : t.isPinboard
+                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/50'
+                    : 'bg-slate-100 dark:bg-neutral-800 text-slate-600 dark:text-neutral-400 hover:bg-slate-200 dark:hover:bg-neutral-700'
               }`}
             >
+              {t.isPinboard && <Pin size={10} />}
               {t.name}
             </button>
 
@@ -380,10 +442,13 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(({
           peers={peers}
           threads={threads}
           myId={myId}
+          isPinboard={activeThread?.isPinboard ?? false}
           resolveMessage={resolveMessage}
           onSend={handleSend}
           onSwitchThread={setActiveThreadId}
           onJumpToMessage={handleJumpToMessage}
+          onPin={handlePin}
+          onUnpin={handleUnpin}
           scrollToMessageId={scrollToMessageId}
           onScrollConsumed={() => setScrollToMessageId(null)}
         />

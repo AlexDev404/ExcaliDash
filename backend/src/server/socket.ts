@@ -307,6 +307,28 @@ export const registerSocketHandlers = ({
       socket.to(roomId).emit("chat-message", safePayload);
     });
 
+    // ── Pin / Unpin relay ─────────────────────────────────────────────────────
+    socket.on("chat-pin", (data) => {
+      const drawingId = typeof data?.drawingId === "string" ? data.drawingId : null;
+      if (!drawingId || !authorizedDrawingAccess.has(drawingId)) return;
+      const roomId = `drawing_${drawingId}`;
+      const users = roomUsers.get(roomId) || [];
+      const self = users.find((u) => u.socketId === socket.id);
+      if (!self) return;
+      // Relay verbatim — message author already verified on original chat-message relay
+      socket.to(roomId).emit("chat-pin", data);
+    });
+
+    socket.on("chat-unpin", (data) => {
+      const drawingId = typeof data?.drawingId === "string" ? data.drawingId : null;
+      if (!drawingId || !authorizedDrawingAccess.has(drawingId)) return;
+      const roomId = `drawing_${drawingId}`;
+      const users = roomUsers.get(roomId) || [];
+      const self = users.find((u) => u.socketId === socket.id);
+      if (!self) return;
+      socket.to(roomId).emit("chat-unpin", data);
+    });
+
     socket.on("disconnect", () => {
       socketPrincipalMap.delete(socket.id);
       roomUsers.forEach((users, roomId) => {

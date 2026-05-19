@@ -1,4 +1,4 @@
-import { CornerUpLeft, Download, Link2, Paperclip, Send, X } from 'lucide-react';
+import { CornerUpLeft, Download, Link2, Paperclip, Pin, PinOff, Send, X } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -28,10 +28,14 @@ interface ChatThreadViewProps {
   peers: Peer[];
   threads: ChatThread[];
   myId: string;
+  /** True when viewing the pinboard — hides the input bar */
+  isPinboard: boolean;
   resolveMessage: (id: string) => Promise<ChatMessage | undefined>;
   onSend: (body: string, attachments: ChatAttachment[], mentionedUserIds: string[]) => void;
   onSwitchThread: (threadId: string) => void;
   onJumpToMessage: (msgId: string) => void;
+  onPin: (message: ChatMessage) => void;
+  onUnpin: (originalMessageId: string) => void;
   scrollToMessageId: string | null;
   onScrollConsumed: () => void;
 }
@@ -186,12 +190,15 @@ const renderBody = (
 const MessageBubble: React.FC<{
   message: ChatMessage;
   isMine: boolean;
+  isPinboard: boolean;
   threads: ChatThread[];
   resolveMessage: (id: string) => Promise<ChatMessage | undefined>;
   onSwitchThread: (threadId: string) => void;
   onJumpToMessage: (msgId: string) => void;
   onReply: (msgId: string) => void;
-}> = ({ message, isMine, threads, resolveMessage, onSwitchThread, onJumpToMessage, onReply }) => {
+  onPin: (message: ChatMessage) => void;
+  onUnpin: (originalMessageId: string) => void;
+}> = ({ message, isMine, isPinboard, threads, resolveMessage, onSwitchThread, onJumpToMessage, onReply, onPin, onUnpin }) => {
   const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -217,16 +224,34 @@ const MessageBubble: React.FC<{
           {message.authorName}
         </span>
       )}
+      {/* Pinboard origin label */}
+      {isPinboard && message.pinnedFromThreadId && (
+        <button
+          type="button"
+          onClick={() => {
+            if (message.pinnedFromThreadId) onSwitchThread(message.pinnedFromThreadId);
+          }}
+          className="flex items-center gap-1 px-1 mb-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400 hover:underline"
+        >
+          <Pin size={9} />
+          {(() => {
+            const t = threads.find(t => t.id === message.pinnedFromThreadId);
+            return `from #${t?.name ?? message.pinnedFromThreadId}`;
+          })()}
+        </button>
+      )}
       <div
         className={`max-w-[90%] rounded-2xl px-3 py-2 text-sm break-words ${
-          isMine
-            ? 'bg-indigo-600 text-white rounded-br-sm'
-            : 'bg-slate-100 dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 rounded-bl-sm'
+          isPinboard
+            ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-slate-900 dark:text-neutral-100 rounded-bl-sm'
+            : isMine
+              ? 'bg-indigo-600 text-white rounded-br-sm'
+              : 'bg-slate-100 dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 rounded-bl-sm'
         }`}
       >
         {message.body && (
           <div className="whitespace-pre-wrap leading-relaxed">
-            {renderBody(message.body, isMine, threads, resolveMessage, onSwitchThread, onJumpToMessage)}
+            {renderBody(message.body, isMine && !isPinboard, threads, resolveMessage, onSwitchThread, onJumpToMessage)}
           </div>
         )}
         {message.attachments.map((att, idx) =>
@@ -249,7 +274,7 @@ const MessageBubble: React.FC<{
               key={idx}
               href={att.dataURL}
               download={att.name}
-              className={`mt-1.5 flex items-center gap-1.5 text-xs underline ${isMine ? 'text-white/80' : 'text-indigo-600 dark:text-indigo-400'}`}
+              className={`mt-1.5 flex items-center gap-1.5 text-xs underline ${isMine && !isPinboard ? 'text-white/80' : 'text-indigo-600 dark:text-indigo-400'}`}
             >
               <Paperclip size={12} />
               {att.name} ({(att.size / 1024).toFixed(1)} KB)
@@ -273,14 +298,36 @@ const MessageBubble: React.FC<{
               <Link2 size={16} />
             )}
           </button>
-          <button
-            type="button"
-            onClick={() => onReply(message.id)}
-            title="Reply"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors"
-          >
-            <CornerUpLeft size={16} />
-          </button>
+          {isPinboard ? (
+            /* Unpin button — only shown in pinboard view */
+            <button
+              type="button"
+              onClick={() => message.pinnedFromMessageId && onUnpin(message.pinnedFromMessageId)}
+              title="Unpin"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+            >
+              <PinOff size={16} />
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => onReply(message.id)}
+                title="Reply"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors"
+              >
+                <CornerUpLeft size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onPin(message)}
+                title="Pin for everyone"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+              >
+                <Pin size={16} />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -293,10 +340,13 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
   peers,
   threads,
   myId,
+  isPinboard,
   resolveMessage,
   onSend,
   onSwitchThread,
   onJumpToMessage,
+  onPin,
+  onUnpin,
   scrollToMessageId,
   onScrollConsumed,
 }) => {
@@ -450,18 +500,21 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
             key={msg.id}
             message={msg}
             isMine={msg.authorId === myId}
+            isPinboard={isPinboard}
             threads={threads}
             resolveMessage={resolveMessage}
             onSwitchThread={onSwitchThread}
             onJumpToMessage={onJumpToMessage}
             onReply={handleReply}
+            onPin={onPin}
+            onUnpin={onUnpin}
           />
         ))}
         <div ref={bottomRef} />
       </div>
 
       {/* Pending attachments preview */}
-      {pendingAttachments.length > 0 && (
+      {!isPinboard && pendingAttachments.length > 0 && (
         <div className="px-3 py-2 flex flex-wrap gap-2 border-t border-slate-200 dark:border-neutral-700">
           {pendingAttachments.map((att, idx) => (
             <div key={idx} className="relative group">
@@ -488,7 +541,7 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
       )}
 
       {/* @mention dropdown */}
-      {filteredPeers.length > 0 && (
+      {!isPinboard && filteredPeers.length > 0 && (
         <div className="mx-3 mb-1 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 rounded-xl shadow-lg overflow-hidden">
           {filteredPeers.slice(0, 6).map(peer => (
             <button
@@ -515,7 +568,17 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
         </div>
       )}
 
-      {/* Input bar */}
+      {/* Input bar — hidden on pinboard */}
+      {isPinboard ? (
+        <div className="px-3 pb-3 pt-2 border-t border-amber-200 dark:border-amber-800 flex items-center gap-2">
+          <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+            <Pin size={13} className="text-amber-500 flex-shrink-0" />
+            <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+              Pinboard is read-only. Hover a message to unpin it.
+            </span>
+          </div>
+        </div>
+      ) : (
       <div className="px-3 pb-3 pt-2 border-t border-slate-200 dark:border-neutral-700 flex items-end gap-2">
         <textarea
           ref={inputRef}
@@ -549,6 +612,7 @@ export const ChatThreadView: React.FC<ChatThreadViewProps> = ({
           <Send size={16} />
         </button>
       </div>
+      )}
     </div>
   );
 };

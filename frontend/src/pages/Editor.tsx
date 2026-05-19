@@ -32,7 +32,7 @@ import {
     isSuspiciousEmptySnapshot,
 } from './editor/shared';
 import { ChatPanel, type ChatPanelHandle } from './editor/chat/ChatPanel';
-import type { ChatMessagePayload } from './editor/chat/ChatTypes';
+import type { ChatMessagePayload, ChatPinPayload, ChatUnpinPayload } from './editor/chat/ChatTypes';
 import { useEditorChrome } from './editor/useEditorChrome';
 import { useEditorIdentity } from './editor/useEditorIdentity';
 
@@ -738,6 +738,15 @@ export const Editor: React.FC = () => {
       }
     });
 
+    socket.on("chat-pin", (payload: ChatPinPayload) => {
+      chatPanelRef.current?.receivePin(payload);
+      if (!isChatOpenRef.current) setChatUnread(true);
+    });
+
+    socket.on("chat-unpin", (payload: ChatUnpinPayload) => {
+      chatPanelRef.current?.receiveUnpin(payload);
+    });
+
 
     const handleActivity = (isActive: boolean) => {
       socket.emit('user-activity', { drawingId: id, isActive });
@@ -763,6 +772,8 @@ export const Editor: React.FC = () => {
       socket.off('cursor-move');
       socket.off('element-update');
       socket.off('chat-message');
+      socket.off('chat-pin');
+      socket.off('chat-unpin');
       socket.disconnect();
       if (remoteFlushRafIdRef.current !== null) {
         cancelAnimationFrame(remoteFlushRafIdRef.current);

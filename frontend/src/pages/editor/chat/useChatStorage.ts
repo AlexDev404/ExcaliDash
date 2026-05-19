@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import type { ChatMessage, ChatThread } from './ChatTypes';
 
-const DB_VERSION = 1;
+const DB_VERSION = 1; // no schema change needed — pinboard is just data
 
 const openDb = (drawingId: string): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
@@ -89,6 +89,22 @@ export const useChatStorage = (drawingId: string) => {
     }
   }, [getDb]);
 
+  const ensurePinboardThread = useCallback(async (): Promise<void> => {
+    const db = await getDb();
+    const tx = db.transaction('threads', 'readwrite');
+    const store = tx.objectStore('threads');
+    const existing = await idbGet<ChatThread>(store, 'pinboard');
+    if (!existing) {
+      await idbPut(store, {
+        id: 'pinboard',
+        name: 'Pinboard',
+        createdAt: Date.now(),
+        isDefault: true,
+        isPinboard: true,
+      } satisfies ChatThread);
+    }
+  }, [getDb]);
+
   const addThread = useCallback(async (thread: ChatThread): Promise<void> => {
     const db = await getDb();
     const tx = db.transaction('threads', 'readwrite');
@@ -143,14 +159,65 @@ export const useChatStorage = (drawingId: string) => {
     }
   }, [getDb]);
 
+  // ── Pin / Unpin ────────────────────────────────────────────────────────────
+
+  /** Store a copy of `message` in the pinboard thread, tagged with its origin. */
+  const pinMessage = useCallback(async (message: ChatMessage): Promise<void> => {
+    const db = await getDb();
+    // Ensure pinboard thread exists first
+    const threadTx = db.transaction('threads', 'readwrite');
+    const threadStore = threadTx.objectStore('threads');
+    const existing = await idbGet<ChatThread>(threadStore, 'pinboard');
+    if (!existing) {
+      await idbPut(threadStore, {
+        id: 'pinboard',
+        name: 'Pinboard',
+        createdAt: Date.now(),
+        isDefault: true,
+        isPinboard: true,
+      } satisfies ChatThread);
+    }
+    // Write the pinboard copy
+    const msgTx = db.transaction('messages', 'readwrite');
+    const pinCopy: ChatMessage = {
+      ...message,
+      id: `pin-${message.id}`,
+      threadId: 'pinboard',
+      pinnedFromThreadId: message.threadId,
+      pinnedFromMessageId: message.id,
+    };
+    await idbPut(msgTx.objectStore('messages'), pinCopy);
+  }, [getDb]);
+
+  /** Remove the pinboard copy for the message with the given original id. */
+  const unpinMessage = useCallback(async (originalMessageId: string): Promise<void> => {
+    const db = await getDb();
+    const tx = db.transaction('messages', 'readwrite');
+    const msgStore = tx.objectStore('messages');
+    // The pinboard copy always has id `pin-<originalId>`
+    await idbDelete(msgStore, `pin-${originalMessageId}`);
+  }, [getDb]);
+
+  /** Returns true if a pinboard copy exists for the given original message id. */
+  const isPinned = useCallback(async (originalMessageId: string): Promise<boolean> => {
+    const db = await getDb();
+    const tx = db.transaction('messages', 'readonly');
+    const result = await idbGet<ChatMessage>(tx.objectStore('messages'), `pin-${originalMessageId}`);
+    return result !== undefined;
+  }, [getDb]);
+
   return useMemo(() => ({
     getThreads,
     ensureMainThread,
+    ensurePinboardThread,
     addThread,
     deleteThread,
     getMessage,
     getMessages,
     addMessage,
     clearThread,
-  }), [getThreads, ensureMainThread, addThread, deleteThread, getMessage, getMessages, addMessage, clearThread]);
+    pinMessage,
+    unpinMessage,
+    isPinned,
+  }), [getThreads, ensureMainThread, ensurePinboardThread, addThread, deleteThread, getMessage, getMessages, addMessage, clearThread, pinMessage, unpinMessage, isPinned]);
 };
